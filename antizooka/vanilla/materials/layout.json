@@ -1,0 +1,67 @@
+{
+  "submeshes": [
+    {
+      "index": 0,
+      "material": "M_Tarnished Gold Antizooka",
+      "triangles": 1846,
+      "vertices": 2251,
+      "layers": [
+        {
+          "slot": "_MainTex",
+          "file": "textures/Starboy_tex.png"
+        },
+        {
+          "slot": "_Texture1",
+          "file": "textures/A_Texture_23.png",
+          "source": "sharedassets0.assets"
+        },
+        {
+          "slot": "_Texture2",
+          "file": "textures/A_Texture_60.png"
+        },
+        {
+          "slot": "_Texture3",
+          "file": "textures/A_Texture_77.png"
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "material": "M_Scout_Star_Antizooka",
+      "triangles": 170,
+      "vertices": 164,
+      "layers": [
+        {
+          "slot": "_MainTex",
+          "file": "textures/star_edge.png"
+        },
+        {
+          "slot": "_Texture1",
+          "file": "textures/A_Texture_23.png",
+          "source": "sharedassets0.assets"
+        },
+        {
+          "slot": "_Texture2",
+          "file": "textures/stars.png"
+        },
+        {
+          "slot": "_Texture3",
+          "file": "textures/A_Texture_60.png"
+        }
+      ]
+    }
+  ],
+  "named_texture": "textures/AntiZooka.png",
+  "collision_mesh": "meshes/Anti-Zooka_Coll.obj",
+  "visual_mesh": "meshes/Anti-Zooka.obj",
+  "sounds": [
+    "sounds/antizooka-Charge.wav",
+    "sounds/antizooka-Fire.wav",
+    "sounds/antizooka-Field_Spawn.wav"
+  ],
+  "notes": [
+    "PEAK item shaders layer several triplanar textures and tint with vertex colors.",
+    "Reworking the look usually means editing those layer textures and/or vertex colors, not a single baked albedo.",
+    "Unity X axis is flipped in the exported OBJ/GLB (left-handed Unity -> right-handed)."
+  ]
+}
