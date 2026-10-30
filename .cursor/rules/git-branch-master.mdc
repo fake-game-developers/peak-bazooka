@@ -1,0 +1,13 @@
+---
+description: Use master as the git branch name
+alwaysApply: true
+---
+
+# Branch name
+
+Always use `master` as the default and primary branch name.
+
+- `git init -b master`
+- Create new branches from `master`, not `main`
+- Push and open PRs against `master`
+- Do not rename `master` to `main` or create a `main` branch
