@@ -142,42 +142,32 @@ Report bugs and suggestions on [GitHub Issues](https://github.com/fake-game-deve
 
 ## Build
 
-Requires the .NET 10 SDK (see `global.json`) and [PEAK](https://store.steampowered.com/app/3527290/PEAK/) installed (auto-detected under common Steam paths), or set `PEAK_GAME_DIR` / `-p:PeakGameRootDir=` to the folder with `PEAK.exe`.
+Anyone can clone this repository, change the mod and build it.
+
+**You need:**
+
+- The [.NET 10 SDK](https://dotnet.microsoft.com/download) (`global.json` pins the 10.0 band). Packages restore from NuGet, the BepInEx feed and the Windows10CE feed (see `Directory.Build.targets`).
+- PEAK's game assemblies, from either:
+  - **PEAK installed.** The build finds it under the usual Steam folders on Windows and Linux. Otherwise set the `PEAK_GAME_DIR` environment variable or pass `-p:PeakGameRootDir=` (the folder with `PEAK.exe`).
+  - **No PEAK needed:** the public, stripped reference assemblies in [PEAKGameLibs](https://github.com/fake-game-developers/PEAKGameLibs), which is what CI uses. Download `package/lib/` and pass `-p:ManagedDir=<that folder>/ -p:PeakGameRootDir=""`.
 
 ```bash
+git clone https://github.com/fake-game-developers/peak-bazooka.git
+cd peak-bazooka
 dotnet build Peak.Bazooka.slnx -c Release
+
+# without PEAK installed:
+curl -fsSL https://github.com/fake-game-developers/PEAKGameLibs/archive/refs/heads/main.tar.gz | tar -xz
+dotnet build Peak.Bazooka.slnx -c Release -p:ManagedDir="$PWD/PEAKGameLibs-main/package/lib/" -p:PeakGameRootDir=""
 ```
 
-Optional deploy: `-p:DeployToPeak=true -p:PeakPluginsDir="/path/to/BepInEx/plugins/FakeGameDevelopers-Bazooka"`  
-Optional overrides: copy `Config.Build.user.props.example` → `Config.Build.user.props` (gitignored).
+On Windows, give `ManagedDir` a Windows path, for example in PowerShell: `-p:ManagedDir="$PWD\PEAKGameLibs-main\package\lib\"`.
 
 The DLL is `artifacts/bin/Peak.Bazooka/release/PeakBazooka.dll`.
 
-## Developers
+**Test loop:** add `-p:DeployToPeak=true -p:PeakPluginsDir="<profile>/BepInEx/plugins/FakeGameDevelopers-Bazooka"` to copy the DLL into a mod manager profile after each build (close PEAK first; the DLL is locked while it runs). To keep these settings, copy `Config.Build.user.props.example` → `Config.Build.user.props` (gitignored). Config changes don't need a rebuild: PEAK re-reads `PeakBazooka.cfg` while running. The game log is `BepInEx/LogOutput.log` in the profile; the mod logs what it set up (paint, rocket model, explosion, hold position) under `[PeakBazooka]`.
 
-[AGENTS.md](AGENTS.md) is the code map: how the bazooka is cloned and repainted, how shots are authorized and hits replicated, the blast and rocket jump physics, and what not to touch. [antizooka/](antizooka/README.md) has the AntiZooka's textures for anyone reworking the look (not part of the build).
-
-| Path | What it is |
-|---|---|
-| `src/PeakBazooka/` | The mod (C# namespace `Peak.Bazooka`) |
-| `src/PeakBazooka/Targets/` | One file per thing a rocket can hit |
-| `src/PeakBazooka/icons/BazookaIcon.png` | Hotbar icon (512×512; `icon.png` is the 256×256 package icon) |
-| `src/PeakBazooka/localization/strings.csv` | Built-in translations |
-| `src/PeakBazooka/thunderstore.toml` | Package metadata, dependencies and contents |
-| `THUNDERSTORE.md` | The readme shown on Thunderstore |
-| `CHANGELOG.md` | Release notes, shipped in the package |
-
-## Thunderstore packaging (CI)
-
-[.github/workflows/thunderstore.yml](.github/workflows/thunderstore.yml) runs **by hand** from the Actions tab (it does not run on pushes yet):
-
-1. Builds the Thunderstore ZIP (using [FakeGameDevelopers.PEAKGameLibs](https://github.com/fake-game-developers/PEAKGameLibs) stripped refs for compile references)
-2. Uploads a workflow artifact named **`FakeGameDevelopers-Bazooka`**
-3. Only when the **publish** box is ticked: publishes to Thunderstore if `<Version>` in `src/PeakBazooka/Peak.Bazooka.csproj` is not yet the live release and the organization secret `TCLI_AUTH_TOKEN` is set. The publish step copies the categories already on the package, so a new version keeps the same tags.
-
-Each release needs a new `<Version>` and a matching `CHANGELOG.md` section.
-
-### Local package build
+### Thunderstore package
 
 ```bash
 ./build.sh
@@ -185,7 +175,42 @@ Each release needs a new `<Version>` and a matching `CHANGELOG.md` section.
 # zip lands in artifacts/thunderstore/
 ```
 
-The zip holds `plugins/PeakBazooka.dll`, `icon.png`, `README.md` (from `THUNDERSTORE.md`), `manifest.json`, `CHANGELOG.md` and `LICENSE`, ready to upload on Thunderstore.
+The version is `<Version>` in `src/PeakBazooka/Peak.Bazooka.csproj`; the package name, namespace, description, dependencies and contents are in `src/PeakBazooka/thunderstore.toml`. The zip holds `plugins/PeakBazooka.dll`, `icon.png`, `README.md` (from `THUNDERSTORE.md`), `manifest.json`, `CHANGELOG.md` and `LICENSE`, ready to upload on Thunderstore.
+
+[.github/workflows/thunderstore.yml](.github/workflows/thunderstore.yml) builds the same zip on GitHub. It runs **by hand** from the Actions tab (not on pushes) and uploads the zip as an artifact. It publishes only when its **publish** box is ticked, the version is not live yet and the `TCLI_AUTH_TOKEN` secret is set; the publish step keeps the categories already on the package. It reads the package name from `thunderstore.toml` and checks that the PEAKLib versions there match the csproj.
+
+Each release needs a new `<Version>` and a matching `CHANGELOG.md` section.
+
+## Make your own version
+
+[AGENTS.md](AGENTS.md) is the code map: how the bazooka is cloned from the AntiZooka and repainted, how shots are authorized and hits replicated, the blast and rocket jump physics, and what not to touch. [antizooka/](antizooka/README.md) has the AntiZooka's textures for reference.
+
+**Where to change things** (all under `src/PeakBazooka/`):
+
+| To change | Edit |
+|---|---|
+| Setting defaults and ranges | The `Config.Bind` calls in `Plugin.cs` (and the tables in `README.md` / `THUNDERSTORE.md`) |
+| Colours | `RocketRed` and `PaperWhite` in `BazookaPaint.cs`; which pieces get which colour is `Split` there |
+| Icons | `icons/BazookaIcon.png` (512×512, in game) and `icon.png` at the repo root (256×256, Thunderstore) |
+| Item name and translations | `localization/strings.csv` (key `NAME_BAZOOKA`) |
+| Fire rate | `gun.fireRate` in `Plugin.cs` |
+| Rocket drop, lifetime and size | `GravityScale`, `MaxLife` and `Radius` in `BazookaRocket.cs`; the model and its size in `RocketModel.cs` |
+| Blast reach and knockback shape | `MinBlastReach` and `DefaultKnockback` in `Plugin.cs`; `EdgeShove` and `ShoveUp` in `GunCharacterLaunch.cs` |
+| Damage to other scouts | `ScoutInjury` in `BazookaShooter.cs` |
+| Smoke lifetime | `ExplosionCleanupSeconds` in `Plugin.cs` |
+| Rocket jump feel | `RocketFlight.cs` (`MaxSpeed`, `AirWishSpeed`) and the `[RocketJump]` settings |
+| Where it spawns | `GuaranteedLuggageBazookas`, `MaxBazookasPerBiome` and the `Rarity` in `Plugin.cs`; `RootsLuggagePatch.cs` |
+| What rockets hit | One `ShotTarget` per target in `Targets/`, registered in `Targets/ShotTargetRegistry.cs`, with its switch in `Targets/ShootableRules.cs` |
+
+**Publishing your own mod.** To ship it as a separate package that can sit next to this one, change its identity:
+
+1. `src/PeakBazooka/thunderstore.toml`: `namespace` (your Thunderstore team), `name`, `description`, `websiteUrl`. CI and the package build read the name from here.
+2. `src/PeakBazooka/Plugin.cs`: the plugin GUID in `[BepInAutoPlugin("PeakBazooka")]`. It also names the config file and the item's id.
+3. `src/PeakBazooka/Peak.Bazooka.csproj`: `AssemblyName` (the DLL name, also in `thunderstore.toml`'s `[[build.copy]]`), `Authors`, `Company`, `Version`.
+4. The `PeakBazooka_*` room keys in `HostConfigSync.cs` and `BazookaLootLedger.cs`, and the `PeakBazooka.*` file names in `BazookaLootLedger.cs` and `BazookaText.cs`, so both mods can run in one lobby.
+5. `icon.png`, `README.md`, `THUNDERSTORE.md` and `CHANGELOG.md`.
+
+The [LICENSE](LICENSE) lets you use, change and publish the code, as long as you credit Arman Ossi Loko and Fake Game Developers where you publish it.
 
 ## Credits
 

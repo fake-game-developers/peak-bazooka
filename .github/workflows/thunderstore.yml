@@ -81,11 +81,20 @@ jobs:
           test -f ts-artifact/icon.png
           test -f ts-artifact/README.md
           echo "path=ts-artifact" >> "$GITHUB_OUTPUT"
+          # Package identity comes from thunderstore.toml, so a fork only edits that file.
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import tomllib
+          with open("src/PeakBazooka/thunderstore.toml", "rb") as f:
+              package = tomllib.load(f)["package"]
+          print(f"namespace={package['namespace']}")
+          print(f"name={package['name']}")
+          print(f"full_name={package['namespace']}-{package['name']}")
+          EOF
 
       - name: Upload Thunderstore-ready artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FakeGameDevelopers-Bazooka
+          name: ${{ steps.package.outputs.full_name }}
           path: ts-artifact/*
           if-no-files-found: error
 
@@ -93,6 +102,8 @@ jobs:
         id: publish
         env:
           PUBLISH_REQUESTED: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
+          TS_NAMESPACE: ${{ steps.package.outputs.namespace }}
+          TS_NAME: ${{ steps.package.outputs.name }}
         run: |
           set -euo pipefail
           if [ "${PUBLISH_REQUESTED}" != "true" ]; then
@@ -107,7 +118,7 @@ jobs:
           # Publish when the csproj version is not yet the live Thunderstore release.
           # Comparing only to the previous git commit misses bumps made while CI was red.
           # Only a confirmed 404 counts as "never published"; any other failure stops the job.
-          url="https://thunderstore.io/api/experimental/package/FakeGameDevelopers/Bazooka/"
+          url="https://thunderstore.io/api/experimental/package/${TS_NAMESPACE}/${TS_NAME}/"
           status=000
           for attempt in 1 2 3; do
             if ! status=$(curl -sS -A "peak-bazooka" --max-time 30 -o live.json -w '%{http_code}' "$url"); then
