@@ -7,7 +7,7 @@ repository = "https://thunderstore.io"
 [package]
 namespace = "FakeGameDevelopers"
 name = "Bazooka"
-description = "A rocket launcher for PEAK. Blast zombies, spiders and your friends off the mountain, or switch to RocketJump mode and fly up cliffs TF2-style. Explosions cook food too."
+description = "A rocket launcher for PEAK. Blast zombies, spiders and your friends off the mountain, or switch to RocketJump mode and fly up cliffs TF2-style."
 websiteUrl = "https://github.com/fake-game-developers/peak-bazooka"
 containsNsfwContent = false
 
