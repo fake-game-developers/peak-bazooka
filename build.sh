@@ -1,3 +1,3 @@
 #!/bin/sh
 
-dotnet build Peak.Shotgun.slnx -c Release -target:PackTS -v d
+dotnet build Peak.Bazooka.slnx -c Release -target:PackTS -v d

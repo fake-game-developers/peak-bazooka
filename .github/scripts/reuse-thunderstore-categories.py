@@ -14,11 +14,11 @@ except ModuleNotFoundError:
     sys.exit("Python 3.11+ is required")
 
 ROOT = Path(__file__).resolve().parents[2]
-TOML = ROOT / "src" / "PeakShotgun" / "thunderstore.toml"
+TOML = ROOT / "src" / "PeakBazooka" / "thunderstore.toml"
 
 
 def get_json(url: str):
-    request = urllib.request.Request(url, headers={"User-Agent": "peak-shotgun"})
+    request = urllib.request.Request(url, headers={"User-Agent": "peak-bazooka"})
     with urllib.request.urlopen(request) as response:
         return json.load(response)
 

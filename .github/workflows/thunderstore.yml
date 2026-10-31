@@ -1,9 +1,17 @@
 name: Thunderstore
 
+# Not automatic yet: run it by hand from the Actions tab. It always builds the package and uploads it as an
+# artifact; it publishes to Thunderstore only when "publish" is ticked and this version is not live yet.
+# To release on every push to master later, add:
+#   push:
+#     branches: [master]
 on:
-  push:
-    branches: [master]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish to Thunderstore (needs the TCLI_AUTH_TOKEN secret)
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -17,7 +25,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Peak.Shotgun.slnx needs a .NET 10 SDK; global.json pins the band so the build does not depend
+      # Peak.Bazooka.slnx needs a .NET 10 SDK; global.json pins the band so the build does not depend
       # on whatever newer SDK the runner image happens to ship.
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -29,9 +37,9 @@ jobs:
           set -euo pipefail
           python3 - <<'EOF'
           import re, sys, tomllib
-          csproj = open("src/PeakShotgun/Peak.Shotgun.csproj", encoding="utf-8").read()
+          csproj = open("src/PeakBazooka/Peak.Bazooka.csproj", encoding="utf-8").read()
           built = dict(re.findall(r'<PackageReference Include="PEAKModding\.(PEAKLib\.\w+)" Version="([^"]+)"', csproj))
-          with open("src/PeakShotgun/thunderstore.toml", "rb") as f:
+          with open("src/PeakBazooka/thunderstore.toml", "rb") as f:
               declared = tomllib.load(f)["package"]["dependencies"]
           bad = False
           for lib, version in built.items():
@@ -57,7 +65,7 @@ jobs:
         run: |
           set -euo pipefail
           MANAGED_DIR="$PWD/.gamelibs"
-          dotnet build Peak.Shotgun.slnx -c Release -target:PackTS -v m \
+          dotnet build Peak.Bazooka.slnx -c Release -target:PackTS -v m \
             -p:ManagedDir="$MANAGED_DIR/" \
             -p:PeakGameRootDir=""
 
@@ -83,9 +91,16 @@ jobs:
 
       - name: Decide whether to publish
         id: publish
+        env:
+          PUBLISH_REQUESTED: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
         run: |
           set -euo pipefail
-          csproj=src/PeakShotgun/Peak.Shotgun.csproj
+          if [ "${PUBLISH_REQUESTED}" != "true" ]; then
+            echo "Publishing was not requested; the package is in the run's artifacts."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          csproj=src/PeakBazooka/Peak.Bazooka.csproj
           version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' "$csproj")
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
@@ -95,7 +110,7 @@ jobs:
           url="https://thunderstore.io/api/experimental/package/FakeGameDevelopers/Bazooka/"
           status=000
           for attempt in 1 2 3; do
-            if ! status=$(curl -sS -A "peak-shotgun" --max-time 30 -o live.json -w '%{http_code}' "$url"); then
+            if ! status=$(curl -sS -A "peak-bazooka" --max-time 30 -o live.json -w '%{http_code}' "$url"); then
               status=000
             fi
             case "$status" in
@@ -154,7 +169,7 @@ jobs:
             exit 1
           fi
           MANAGED_DIR="$PWD/.gamelibs"
-          dotnet build Peak.Shotgun.slnx -c Release -target:PackTS -v m \
+          dotnet build Peak.Bazooka.slnx -c Release -target:PackTS -v m \
             -p:ManagedDir="$MANAGED_DIR/" \
             -p:PeakGameRootDir="" \
             -p:PublishTS=true

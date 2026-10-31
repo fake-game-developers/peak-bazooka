@@ -1,0 +1,40 @@
+[config]
+schemaVersion = "0.1.0"
+
+[general]
+repository = "https://thunderstore.io"
+
+[package]
+namespace = "FakeGameDevelopers"
+name = "Bazooka"
+description = "A red-and-white bazooka built from PEAK's AntiZooka. Click to fire rockets that blast zombies, spiders and other creatures. Standard mode is a weapon; RocketJump mode lets you rocket-jump across the map. Configurable targets and ammo."
+websiteUrl = "https://github.com/fake-game-developers/peak-bazooka"
+containsNsfwContent = false
+
+[package.dependencies]
+BepInEx-BepInExPack_PEAK = "5.4.2403"
+PEAKModding-PEAKLib_Core = "1.7.2"
+PEAKModding-PEAKLib_Items = "1.6.2"
+
+[build]
+icon = "../../icon.png"
+readme = "../../THUNDERSTORE.md"
+outdir = "../../artifacts/thunderstore/"
+
+[[build.copy]]
+source = "../../artifacts/bin/Peak.Bazooka/release/PeakBazooka.dll"
+target = "plugins/"
+
+[[build.copy]]
+source = "../../CHANGELOG.md"
+target = "/"
+
+[[build.copy]]
+source = "../../LICENSE"
+target = "/"
+
+[publish]
+communities = [ "peak", ]
+
+[publish.categories]
+peak = [ "mods", "items", "all" ]

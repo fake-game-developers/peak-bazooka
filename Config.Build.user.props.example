@@ -5,7 +5,7 @@
     Example (Windows):
       <PeakGameRootDir>D:\SteamLibrary\steamapps\common\PEAK\</PeakGameRootDir>
       <DeployToPeak>true</DeployToPeak>
-      <PeakPluginsDir>C:\path\to\BepInEx\plugins\FakeGameDevelopers-PeakShotgun\</PeakPluginsDir>
+      <PeakPluginsDir>C:\path\to\BepInEx\plugins\FakeGameDevelopers-Bazooka\</PeakPluginsDir>
   -->
   <PropertyGroup>
     <!-- <PeakGameRootDir></PeakGameRootDir> -->

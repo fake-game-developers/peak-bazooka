@@ -9,13 +9,13 @@ Any release that bumps the mod version **must** include a matching changelog ent
 
 ## When this applies
 
-- Bumping `<Version>` in `src/PeakShotgun/Peak.Shotgun.csproj`
+- Bumping `<Version>` in `src/PeakBazooka/Peak.Bazooka.csproj`
 - Any change intended as a new Thunderstore / mod release
 - Do not bump `<Version>` unless a release was asked for (see `AGENTS.md`)
 
 ## Required updates (same change set)
 
-1. `src/PeakShotgun/Peak.Shotgun.csproj` — new `<Version>`
+1. `src/PeakBazooka/Peak.Bazooka.csproj` — new `<Version>`
 2. `CHANGELOG.md` — new section for that exact version
 
 `thunderstore.toml` copies `CHANGELOG.md` into the package; a missing or stale entry ships an empty/wrong changelog on Thunderstore.
