@@ -36,7 +36,9 @@ public partial class Plugin : BaseUnityPlugin
     /// <summary>Host-synced magazine size. 0 = infinite.</summary>
     internal static int ShotCount => HostConfigSync.ShotCount;
 
-    internal static int LocalConfiguredShots => Mathf.Max(0, shots?.Value ?? 0);
+    internal const int DefaultShots = 5;
+
+    internal static int LocalConfiguredShots => Mathf.Max(0, shots?.Value ?? DefaultShots);
 
     internal static bool InfiniteShots => ShotCount <= 0;
 
@@ -166,8 +168,8 @@ public partial class Plugin : BaseUnityPlugin
             "Standard: a weapon. Rockets injure and ragdoll scouts, and your own blast flings and hurts you. "
             + "RocketJump: rockets never hurt scouts (you or anyone else); your own blast is a rocket jump you steer with WASD in the air. "
             + "Creatures are hit in both modes. Host's value is used in multiplayer.");
-        shots = Config.Bind("Bazooka", "Shots", 0, new ConfigDescription(
-            "Rockets in each bazooka. 0 = infinite; any other number is a limited magazine with no refill. Host's value is used in multiplayer.",
+        shots = Config.Bind("Bazooka", "Shots", DefaultShots, new ConfigDescription(
+            "Rockets in each bazooka, with no refill. 0 = infinite. Host's value is used in multiplayer.",
             new AcceptableValueRange<int>(0, 999)));
         recoil = Config.Bind("Bazooka", "Recoil", 6f, new ConfigDescription(
             "Metres per second the shooter is pushed back, opposite the aim, on each shot. 0 = no recoil.",

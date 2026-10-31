@@ -54,7 +54,7 @@ The bazooka spawns exactly like the vanilla AntiZooka: in the same places, just 
 
 **On spawn (optional):** with `GiveBazookaOnSpawn = true`, the host gives each scout a bazooka when they start the climb or join mid-run (Shore and later, once per player per run).
 
-Ammo is infinite by default (`Shots = 0`); any other number is a magazine that cannot be refilled.
+Each bazooka holds 5 rockets by default (`Shots`) and cannot be refilled. `Shots = 0` makes ammo infinite.
 
 ## Configuration
 
@@ -63,7 +63,7 @@ Settings are in `BepInEx/config/PeakBazooka.cfg` (created on first launch), or i
 | Section | Key | Default | Meaning |
 |---|---|---|---|
 | `[Bazooka]` | `Mode` | `Standard` | `Standard` (a weapon) or `RocketJump` (no scout damage, rocket jumps); see [Two modes](#two-modes). Host's value |
-| `[Bazooka]` | `Shots` | `0` | Rockets per bazooka. `0` = infinite. Host's value |
+| `[Bazooka]` | `Shots` | `5` | Rockets per bazooka, no refill. `0` = infinite. Host's value |
 | `[Bazooka]` | `Recoil` | `6` | How hard firing pushes you back, m/s (Standard). `0` = none |
 | `[Bazooka]` | `CarryWeight` | `4` | Stamina-bar weight while carried (1 = 2.5 on the bar; 4 = 10) |
 | `[Bazooka]` | `ExplosionRadius` | `3.5` | Fireball radius in metres. The push reaches this far, but at least 6m |

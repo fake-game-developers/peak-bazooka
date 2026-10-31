@@ -37,7 +37,7 @@ Rocket flight (`RocketFlight.cs`): PEAK multiplies each bodypart's velocity by `
 
 `Action_Antizooka.RPCA_Shoot` is still sent after the host accepts the shot, but for the bazooka `AntizookaShotJuicePatch` runs `Action_Gun.PlayShotJuice` instead: the same shake and fire SFX, no muzzle flash (the AntiZooka's is a burst of antigravity bubbles; the particle system stays on the clone, it is just never played), and a recoil that settles at the prefab's `defaultPos`. The vanilla juice always settles at (0, 0, 0), which left the bazooka higher after its first shot.
 
-Magazine is `Action_Ammo`. `Shots` default 0 = infinite (`totalUses = -1`). Host-synced. No ammo piles / refill.
+Magazine is `Action_Ammo`. `Shots` default 5 (`Plugin.DefaultShots`); 0 = infinite (`totalUses = -1`). Host-synced. No ammo piles / refill.
 
 ## Release
 
