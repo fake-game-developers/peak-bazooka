@@ -10,9 +10,9 @@ namespace Peak.Shotgun;
 /// </summary>
 internal sealed class TumbleweedTarget : ShotTarget<TumbleWeed>
 {
-    private const float PushSpeed = 9f;
+    private const float PushSpeed = 18f;
 
-    private const float PushLift = 3f;
+    private const float PushLift = 6f;
 
     private const float Spin = 12f;
 
@@ -24,8 +24,8 @@ internal sealed class TumbleweedTarget : ShotTarget<TumbleWeed>
     {
         Vector3 away = Vector3.ProjectOnPlane(hit.DirectionTo(weed.transform.position), Vector3.up);
         Vector3 push = away.sqrMagnitude > 0.0001f
-            ? away.normalized * PushSpeed + Vector3.up * PushLift
-            : Vector3.up * PushSpeed;
+            ? (away.normalized * PushSpeed + Vector3.up * PushLift) * Plugin.KnockbackScale
+            : Vector3.up * (PushSpeed * Plugin.KnockbackScale);
         ShotgunCombat.BroadcastEffect(this, weed, hit, push);
     }
 

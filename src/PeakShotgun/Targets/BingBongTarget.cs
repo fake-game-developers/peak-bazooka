@@ -10,9 +10,9 @@ namespace Peak.Shotgun;
 /// </summary>
 internal sealed class BingBongTarget : ShotTarget<BingBong>
 {
-    private const float PushSpeed = 4f;
+    private const float PushSpeed = 8f;
 
-    private const float PushLift = 3f;
+    private const float PushLift = 6f;
 
     private const float Spin = 15f;
 
@@ -32,7 +32,7 @@ internal sealed class BingBongTarget : ShotTarget<BingBong>
         int line = ask != null && ask.responses != null && ask.responses.Length > 0
             ? Random.Range(0, ask.responses.Length)
             : -1;
-        Vector3 push = hit.DirectionTo(bingBong.transform.position) * PushSpeed + Vector3.up * PushLift;
+        Vector3 push = (hit.DirectionTo(bingBong.transform.position) * PushSpeed + Vector3.up * PushLift) * Plugin.KnockbackScale;
         ShotgunCombat.BroadcastEffect(this, bingBong, hit, push, line);
     }
 

@@ -13,10 +13,8 @@ public class GunCharacterLaunch : MonoBehaviourPunCallbacks
     /// <summary>Standard mode: how long your own blast ragdolls you.</summary>
     internal const float BlastRagdollSeconds = 2f;
 
-    // A clear fling: several metres through the air at point-blank, a stumble at the edge. Not a dynamite launch.
-    private const float MinShoveSpeed = 6f;
-
-    private const float MaxShoveSpeed = 15f;
+    // Share of the knockback at the very edge of the blast; the middle gets all of it.
+    private const float EdgeShove = 0.4f;
 
     private const float ShoveUp = 0.8f;
 
@@ -41,7 +39,7 @@ public class GunCharacterLaunch : MonoBehaviourPunCallbacks
     /// (sender + <paramref name="shotId"/>) and only while the room allows shooting zombies.
     /// </summary>
     [PunRPC]
-    public void RPC_BazookaBlast(Vector3 direction, float strength, int shotId, PhotonMessageInfo info)
+    public void RPC_BazookaBlast(Vector3 direction, float strength, float knockback, int shotId, PhotonMessageInfo info)
     {
         Character? character = GetComponent<Character>();
         if (character == null || !character.photonView.IsMine || !IsZombie(character) || !ShootableRules.Zombies.Enabled)
@@ -50,12 +48,12 @@ public class GunCharacterLaunch : MonoBehaviourPunCallbacks
         }
 
         int targetId = character.photonView.ViewID;
-        if (!ShotLedger.TryConsumeOrDeferHit(info.Sender, shotId, targetId, () => Blast(direction, strength)))
+        if (!ShotLedger.TryConsumeOrDeferHit(info.Sender, shotId, targetId, () => Blast(direction, strength, knockback)))
         {
             return;
         }
 
-        Blast(direction, strength);
+        Blast(direction, strength, knockback);
     }
 
     /// <summary>
@@ -151,9 +149,10 @@ public class GunCharacterLaunch : MonoBehaviourPunCallbacks
 
     /// <summary>
     /// A rocket hit on a scout or zombie this client owns: ragdoll and a push away from the blast, both scaled by
-    /// <paramref name="strength"/> (1 in the middle of the blast, 0 at its edge). Zombies are knocked out.
+    /// <paramref name="strength"/> (1 in the middle of the blast, 0 at its edge). <paramref name="knockback"/> is the
+    /// shooter's <see cref="Plugin.Knockback"/>. Zombies are knocked out.
     /// </summary>
-    public void Blast(Vector3 direction, float strength)
+    public void Blast(Vector3 direction, float strength, float knockback)
     {
         Character? character = GetComponent<Character>();
         if (character == null || !character.photonView.IsMine || character.data.dead)
@@ -168,7 +167,7 @@ public class GunCharacterLaunch : MonoBehaviourPunCallbacks
         // the ground, where friction ate most of it. Fall() already zeroes ragdoll control on the next step; do it
         // now so PEAK's drag (scaled by control) cannot take a bite first.
         character.data.currentRagdollControll = 0f;
-        float speed = Mathf.Lerp(MinShoveSpeed, MaxShoveSpeed, strength);
+        float speed = Mathf.Clamp(knockback, 0f, Plugin.MaxKnockback) * Mathf.Lerp(EdgeShove, 1f, strength);
         Vector3 launch = (direction.normalized + Vector3.up * ShoveUp).normalized * speed;
         foreach (Bodypart part in character.refs.ragdoll.partList)
         {

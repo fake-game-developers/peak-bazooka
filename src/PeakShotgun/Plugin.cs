@@ -58,12 +58,10 @@ public partial class Plugin : BaseUnityPlugin
     /// <summary>Vanilla dynamite <see cref="ExplosionEffect.explosionRadius"/>.</summary>
     internal const float DynamiteExplosionRadius = 5f;
 
-    /// <summary>Old default hit sphere. Much bigger than the 0.3-scale fireball.</summary>
+    /// <summary>Old default hit sphere, from before the fireball was scaled to <c>ExplosionRadius</c>.</summary>
     private const float OldDefaultExplosionRadius = 6f;
 
-    internal const float DefaultExplosionVisualScale = 0.3f;
-
-    internal const float DefaultExplosionRadius = DynamiteExplosionRadius * DefaultExplosionVisualScale;
+    internal const float DefaultExplosionRadius = 3.5f;
 
     /// <summary>Fireball radius in metres. Hits reach <see cref="BlastReach"/>.</summary>
     internal static float ExplosionRadius =>
@@ -74,11 +72,12 @@ public partial class Plugin : BaseUnityPlugin
     /// <summary>Explosion SFX volume multiplier. 1 = vanilla dynamite loudness.</summary>
     internal static float ExplosionVolume => Mathf.Clamp(explosionVolume?.Value ?? 0.2f, 0f, 1f);
 
-    internal static float ExplosionShake => 4f * (ExplosionRadius / DefaultExplosionRadius);
+    /// <summary>Camera shake near a blast: 9 at the default size, growing with the radius.</summary>
+    internal static float ExplosionShake => 9f * (ExplosionRadius / DefaultExplosionRadius);
 
     private static ConfigEntry<float>? rocketSpeed;
 
-    internal static float RocketSpeed => Mathf.Clamp(rocketSpeed?.Value ?? 38f, 8f, 80f);
+    internal static float RocketSpeed => Mathf.Clamp(rocketSpeed?.Value ?? 50f, 8f, 80f);
 
     private static ConfigEntry<BazookaMode>? mode;
 
@@ -97,7 +96,7 @@ public partial class Plugin : BaseUnityPlugin
     private static ConfigEntry<float>? selfKnockback;
 
     /// <summary>Standard mode: point-blank ragdoll launch speed in m/s. Falls off with distance. 0 = none.</summary>
-    internal static float SelfKnockback => Mathf.Clamp(selfKnockback?.Value ?? 10f, 0f, 40f);
+    internal static float SelfKnockback => Mathf.Clamp(selfKnockback?.Value ?? 22f, 0f, 40f);
 
     private static ConfigEntry<float>? selfKnockbackUp;
 
@@ -105,10 +104,25 @@ public partial class Plugin : BaseUnityPlugin
     internal static float SelfKnockbackUp => Mathf.Clamp(selfKnockbackUp?.Value ?? 0.75f, 0f, 2f);
 
     /// <summary>
-    /// Hits reach at least this far. A 1.5m fireball as the hit sphere meant a near miss did nothing; like TF2's
-    /// splash, the blast reaches a little past what you see (dynamite's own was far bigger).
+    /// Hits reach at least this far. A small fireball as the hit sphere meant a near miss did nothing; the push
+    /// reaches well past what you see, and is weakest at the edge.
     /// </summary>
-    internal const float MinBlastReach = 4f;
+    internal const float MinBlastReach = 6f;
+
+    internal const float DefaultKnockback = 30f;
+
+    internal const float MaxKnockback = 60f;
+
+    private static ConfigEntry<float>? knockback;
+
+    /// <summary>
+    /// Speed in m/s a blast throws zombies and other scouts at its middle (40% at its edge). The shooter's value
+    /// travels with each hit, so everyone is thrown alike.
+    /// </summary>
+    internal static float Knockback => Mathf.Clamp(knockback?.Value ?? DefaultKnockback, 0f, MaxKnockback);
+
+    /// <summary><see cref="Knockback"/> relative to its default, for pushes on creatures and loose items.</summary>
+    internal static float KnockbackScale => Knockback / DefaultKnockback;
 
     /// <summary>How far a rocket hits: <see cref="ExplosionRadius"/>, but at least <see cref="MinBlastReach"/>.</summary>
     internal static float BlastReach => Mathf.Max(ExplosionRadius, MinBlastReach);
@@ -116,7 +130,7 @@ public partial class Plugin : BaseUnityPlugin
     private static ConfigEntry<float>? tf2LaunchSpeed;
 
     /// <summary>TF2 mode: point-blank launch speed in m/s. Half of it at the edge of the blast.</summary>
-    internal static float Tf2LaunchSpeed => Mathf.Clamp(tf2LaunchSpeed?.Value ?? 18f, 0f, RocketFlight.MaxSpeed);
+    internal static float Tf2LaunchSpeed => Mathf.Clamp(tf2LaunchSpeed?.Value ?? 20f, 0f, RocketFlight.MaxSpeed);
 
     private static ConfigEntry<float>? tf2LaunchUp;
 
@@ -125,12 +139,12 @@ public partial class Plugin : BaseUnityPlugin
     private static ConfigEntry<float>? tf2AirControl;
 
     /// <summary>TF2 mode: WASD acceleration in the air, m/s².</summary>
-    internal static float Tf2AirControl => Mathf.Clamp(tf2AirControl?.Value ?? 20f, 0f, 100f);
+    internal static float Tf2AirControl => Mathf.Clamp(tf2AirControl?.Value ?? 10f, 0f, 100f);
 
     private static ConfigEntry<float>? tf2Gravity;
 
     /// <summary>TF2 mode: gravity during a rocket jump, m/s².</summary>
-    internal static float Tf2Gravity => Mathf.Clamp(tf2Gravity?.Value ?? 15f, 1f, 40f);
+    internal static float Tf2Gravity => Mathf.Clamp(tf2Gravity?.Value ?? 10f, 1f, 40f);
 
     private static ConfigEntry<bool>? debugMode;
 
@@ -189,28 +203,32 @@ public partial class Plugin : BaseUnityPlugin
         explosionVolume = Config.Bind("Bazooka", "ExplosionVolume", 0.2f, new ConfigDescription(
             "Explosion loudness vs vanilla dynamite. Takes effect on the next blast; no restart.",
             new AcceptableValueRange<float>(0f, 1f)));
-        rocketSpeed = Config.Bind("Bazooka", "RocketSpeed", 38f, new ConfigDescription(
+        rocketSpeed = Config.Bind("Bazooka", "RocketSpeed", 50f, new ConfigDescription(
             "Rocket flight speed in metres per second.",
             new AcceptableValueRange<float>(8f, 80f)));
         selfDamage = Config.Bind("Bazooka", "SelfDamage", 0.25f, new ConfigDescription(
             "Standard mode: Injury from your own blast at point-blank (0–1); half that at the edge of the blast. TF2 mode: none. Other scouts take 0.4.",
             new AcceptableValueRange<float>(0f, 1f)));
-        selfKnockback = Config.Bind("Bazooka", "SelfKnockback", 10f, new ConfigDescription(
+        knockback = Config.Bind("Bazooka", "Knockback", DefaultKnockback, new ConfigDescription(
+            "How hard a blast throws zombies, other scouts, creatures and loose items, in metres per second at its middle (40% at its edge). "
+            + "Your own blast is SelfKnockback (Standard) or [TF2] LaunchSpeed. The shooter's value is used.",
+            new AcceptableValueRange<float>(0f, MaxKnockback)));
+        selfKnockback = Config.Bind("Bazooka", "SelfKnockback", 22f, new ConfigDescription(
             $"Standard mode: how hard your own blast flings you (ragdolled), in metres per second at point-blank. Falls off to zero at the edge of the blast ({MinBlastReach}m, or ExplosionRadius if bigger). 0 = none.",
             new AcceptableValueRange<float>(0f, 40f)));
         selfKnockbackUp = Config.Bind("Bazooka", "SelfKnockbackUp", 0.75f, new ConfigDescription(
             "Standard mode: extra upward pull on a self-blast so shooting the ground pops you up instead of sideways.",
             new AcceptableValueRange<float>(0f, 2f)));
-        tf2LaunchSpeed = Config.Bind("TF2", "LaunchSpeed", 18f, new ConfigDescription(
+        tf2LaunchSpeed = Config.Bind("TF2", "LaunchSpeed", 20f, new ConfigDescription(
             $"Rocket jump speed in metres per second at point-blank; half that at the edge of the blast ({MinBlastReach}m, or ExplosionRadius if bigger). Rockets fired mid-air add up (capped at {RocketFlight.MaxSpeed}).",
             new AcceptableValueRange<float>(0f, RocketFlight.MaxSpeed)));
         tf2LaunchUp = Config.Bind("TF2", "LaunchUp", 0.6f, new ConfigDescription(
             "Extra upward pull on a rocket jump. 0 = pure TF2 (straight away from the blast).",
             new AcceptableValueRange<float>(0f, 2f)));
-        tf2AirControl = Config.Bind("TF2", "AirControl", 20f, new ConfigDescription(
+        tf2AirControl = Config.Bind("TF2", "AirControl", 10f, new ConfigDescription(
             "How fast WASD steers or brakes you during a rocket jump, in m/s². Holding forward never pushes you past running speed (like TF2).",
             new AcceptableValueRange<float>(0f, 100f)));
-        tf2Gravity = Config.Bind("TF2", "Gravity", 15f, new ConfigDescription(
+        tf2Gravity = Config.Bind("TF2", "Gravity", 10f, new ConfigDescription(
             "Gravity during a rocket jump, in m/s². Lower = floatier, longer jumps.",
             new AcceptableValueRange<float>(1f, 40f)));
         giveShotgunOnSpawn = Config.Bind(
@@ -322,9 +340,9 @@ public partial class Plugin : BaseUnityPlugin
     }
 
     /// <summary>
-    /// Old default was a 6m hit sphere around a ~1.5m fireball. If the player never changed
-    /// <c>ExplosionRadius</c>, shrink it to match their <c>ExplosionVisualScale</c> (then that key is dropped).
-    /// Custom radii are kept; the fireball now scales to them.
+    /// Old default was a 6m hit sphere around a ~1.5m fireball. If the player never changed <c>ExplosionRadius</c>,
+    /// move it to the current default (the old <c>ExplosionVisualScale</c> key is dropped). Custom radii are kept;
+    /// the fireball now scales to them.
     /// </summary>
     private void MigrateExplosionRadiusToMatchVisual()
     {
@@ -333,32 +351,7 @@ public partial class Plugin : BaseUnityPlugin
             return;
         }
 
-        float visual = DefaultExplosionVisualScale;
-        object? bag = AccessTools.Property(typeof(ConfigFile), "OrphanedEntries")?.GetValue(Config)
-            ?? AccessTools.Field(typeof(ConfigFile), "orphanedEntries")?.GetValue(Config);
-        if (bag is Dictionary<ConfigDefinition, string> leftover)
-        {
-            foreach (KeyValuePair<ConfigDefinition, string> pair in leftover)
-            {
-                if (pair.Key.Key != "ExplosionVisualScale")
-                {
-                    continue;
-                }
-
-                if (float.TryParse(
-                    pair.Value,
-                    NumberStyles.Float,
-                    CultureInfo.InvariantCulture,
-                    out float parsed))
-                {
-                    visual = Mathf.Clamp(parsed, 0.1f, 1f);
-                }
-
-                break;
-            }
-        }
-
-        float matched = Mathf.Clamp(DynamiteExplosionRadius * visual, 1f, 20f);
+        float matched = DefaultExplosionRadius;
         explosionRadius.Value = matched;
         Log.LogInfo($"ExplosionRadius {OldDefaultExplosionRadius} → {matched} so the blast matches the fireball.");
         Config.Save();
@@ -714,40 +707,43 @@ public partial class Plugin : BaseUnityPlugin
 
         Log.LogInfo($"Explosion VFX uses {source.name} without its damage (kept: {string.Join(", ", kept)}).");
 
-        var shortened = new List<string>();
-        ShortenSmoke(template, shortened);
+        var timers = new List<string>();
+        RemoveAfter(template, timers);
         foreach (ExplosionEffect effect in template.GetComponentsInChildren<ExplosionEffect>(true))
         {
-            // The fireball orbs are spawned from their own prefab, outside this hierarchy: shorten a copy of it.
-            if (effect.explosionOrb != null && !effect.explosionOrb.transform.IsChildOf(template.transform))
+            // The fireball orbs are separate objects ExplosionEffect spawns from its own prefab, so removing the
+            // explosion never removed them. Give the orb itself the timer (on a copy, unless it is part of this one).
+            if (effect.explosionOrb == null)
             {
-                effect.explosionOrb = ShortSmokeCopy(effect.explosionOrb, shortened);
+                continue;
             }
+
+            if (!effect.explosionOrb.transform.IsChildOf(template.transform))
+            {
+                effect.explosionOrb = EffectCopy(effect.explosionOrb);
+            }
+
+            RemoveAfter(effect.explosionOrb, timers);
         }
 
-        Log.LogInfo(shortened.Count > 0
-            ? $"Explosion smoke capped at {SmokeSeconds}s: {string.Join("; ", shortened)}."
-            : "Explosion smoke already fades within " + SmokeSeconds + "s.");
+        Log.LogInfo($"Explosion smoke is removed {ExplosionCleanupSeconds}s after the blast ({string.Join("; ", timers)}).");
         return template;
     }
 
     /// <summary>
-    /// Longest any explosion particle lives. Dynamite's smoke hangs around for ~5s, sized for its own big blast;
-    /// next to a 1.5m fireball it is a dark smudge long after the bang. Particles fade over their lifetime, so a
-    /// shorter one still fades out smoothly, just sooner.
+    /// Everything an explosion leaves (smoke, fireball orbs) is deleted this long after the blast. Dynamite's smoke is
+    /// sized for its own big blast and otherwise lingers as a dark smudge.
     /// </summary>
-    internal const float SmokeSeconds = 1.5f;
-
-    /// <summary>An explosion object still around after this long is removed.</summary>
-    internal const float ExplosionCleanupSeconds = 4f;
+    internal const float ExplosionCleanupSeconds = 7f;
 
     private static GameObject? fxTemplateHolder;
 
     /// <summary>
-    /// Copy of an effect prefab with <see cref="ShortenSmoke"/> applied. It sits under an inactive holder so none of
-    /// its scripts run, while <see cref="UnityEngine.Object.Instantiate(UnityEngine.Object)"/> still makes active copies.
+    /// Copy of an effect prefab that can be changed without touching the game's own. It sits under an inactive holder
+    /// so none of its scripts run, while <see cref="UnityEngine.Object.Instantiate(UnityEngine.Object)"/> still makes
+    /// active copies.
     /// </summary>
-    private static GameObject ShortSmokeCopy(GameObject prefab, List<string> shortened)
+    private static GameObject EffectCopy(GameObject prefab)
     {
         if (fxTemplateHolder == null)
         {
@@ -758,62 +754,26 @@ public partial class Plugin : BaseUnityPlugin
 
         GameObject copy = Instantiate(prefab, fxTemplateHolder.transform);
         copy.name = prefab.name;
-        ShortenSmoke(copy, shortened);
         return copy;
     }
 
-    private static void ShortenSmoke(GameObject root, List<string> shortened)
+    /// <summary>Makes <paramref name="root"/> delete itself <see cref="ExplosionCleanupSeconds"/> after it appears.</summary>
+    private static void RemoveAfter(GameObject root, List<string> timers)
     {
-        foreach (ParticleSystem particles in root.GetComponentsInChildren<ParticleSystem>(true))
+        RemoveAfterSeconds? remove = root.GetComponent<RemoveAfterSeconds>();
+        if (remove == null)
         {
-            ParticleSystem.MainModule main = particles.main;
-            ParticleSystem.MinMaxCurve lifetime = main.startLifetime;
-            float longest = lifetime.mode switch
-            {
-                ParticleSystemCurveMode.Constant => lifetime.constant,
-                ParticleSystemCurveMode.TwoConstants => lifetime.constantMax,
-                _ => lifetime.curveMultiplier,
-            };
-
-            bool longLived = longest > SmokeSeconds;
-            bool longEmitter = !main.loop && main.duration > SmokeSeconds && !particles.isPlaying;
-            if (!longLived && !longEmitter)
-            {
-                continue;
-            }
-
-            if (longLived)
-            {
-                float scale = SmokeSeconds / longest;
-                switch (lifetime.mode)
-                {
-                    case ParticleSystemCurveMode.Constant:
-                        lifetime.constant *= scale;
-                        break;
-                    case ParticleSystemCurveMode.TwoConstants:
-                        lifetime.constantMin *= scale;
-                        lifetime.constantMax *= scale;
-                        break;
-                    default:
-                        lifetime.curveMultiplier *= scale;
-                        break;
-                }
-
-                main.startLifetime = lifetime;
-            }
-
-            if (longEmitter)
-            {
-                main.duration = SmokeSeconds;
-            }
-
-            shortened.Add($"{particles.name} {longest:0.#}s");
+            remove = root.AddComponent<RemoveAfterSeconds>();
+            timers.Add($"{root.name}: none before");
+        }
+        else
+        {
+            timers.Add($"{root.name}: was {remove.seconds:0.#}s{(remove.shrink ? " + shrink" : "")}");
         }
 
-        foreach (RemoveAfterSeconds remove in root.GetComponentsInChildren<RemoveAfterSeconds>(true))
-        {
-            remove.seconds = Mathf.Min(remove.seconds, ExplosionCleanupSeconds);
-        }
+        remove.seconds = ExplosionCleanupSeconds;
+        remove.shrink = false;
+        remove.photonRemove = false;
     }
 
     /// <summary>

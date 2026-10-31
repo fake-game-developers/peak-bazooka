@@ -71,7 +71,9 @@ internal abstract class MobTarget<T> : ShotTarget<T>
         Rigidbody? rig = mob.GetComponent<Rigidbody>();
         if (rig != null && !rig.isKinematic)
         {
-            rig.AddForce(Vector3.up * 5f + UnityEngine.Random.insideUnitSphere * 2.5f, ForceMode.VelocityChange);
+            rig.AddForce(
+                (Vector3.up * 10f + UnityEngine.Random.insideUnitSphere * 5f) * Plugin.KnockbackScale,
+                ForceMode.VelocityChange);
         }
     }
 

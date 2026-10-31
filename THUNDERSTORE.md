@@ -5,7 +5,7 @@ Clones PEAK's AntiZooka into a bazooka. Same model, hands, and muzzle flash — 
 - **Standard mode:** a weapon. Rockets injure and knock down scouts; your own blast flings you.
 - **TF2 mode:** rockets never hurt scouts. Your own blast is a TF2 soldier rocket jump: keep your momentum, steer with WASD, no fall damage.
 
-Spiders, beetles, scorpions, frogs, condors, antlions and zombies go down in one rocket, the Scoutmaster in three. Every target can be switched off. The blast is sized to the fireball: it reaches 4m and flings what is in it a few metres, not a dynamite launch.
+Spiders, beetles, scorpions, frogs, condors, antlions and zombies go down in one rocket, the Scoutmaster in three. Every target can be switched off. The blast throws zombies, scouts, creatures and loose items across the map (`Knockback`), out to 6m around a 3.5m fireball, and cooks what is lying in it like any PEAK explosion.
 
 It does not replace the vanilla AntiZooka.
 
@@ -23,7 +23,7 @@ It does not replace the vanilla AntiZooka.
 
 ## Configuration
 
-After one launch, edit `BepInEx/config/PeakBazooka.cfg` (no restart; saves apply while PEAK is running). Host-synced in multiplayer: `Mode`, `Shots` and the `[Targets]` switches (all on; `ScoutmasterHits` = 3). Per player: recoil, carry weight, `ExplosionRadius` (default 1.5m), volume, rocket speed, Standard self-blast (`SelfDamage`, `SelfKnockback`) and the `[TF2]` rocket jump tuning (`LaunchSpeed`, `LaunchUp`, `AirControl`, `Gravity`).
+After one launch, edit `BepInEx/config/PeakBazooka.cfg` (no restart; saves apply while PEAK is running). Host-synced in multiplayer: `Mode`, `Shots` and the `[Targets]` switches (all on; `ScoutmasterHits` = 3). Per player: recoil, carry weight, `ExplosionRadius` (default 3.5m), `Knockback` (the shooter's value is used), volume, rocket speed, Standard self-blast (`SelfDamage`, `SelfKnockback`) and the `[TF2]` rocket jump tuning (`LaunchSpeed`, `LaunchUp`, `AirControl`, `Gravity`).
 
 ## Install
 

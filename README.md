@@ -9,7 +9,7 @@ A click launches one rocket. There are two modes (`Mode` in the config, the host
 
 Creatures are hit in both modes, and each kind can be switched off under `[Targets]` (all on by default). One rocket kills a spider, beetle, scorpion, frog, condor or antlion and knocks out a zombie. Scoutmaster Myres takes 3 rockets (`ScoutmasterHits`): each one knocks him down, the last sends him away for the rest of the map. Rockets also smash jellyfish, beehives, mandrakes, spore bombs and dynamite, knock ticks off scouts and coconuts off trees, and push tumbleweeds and Bing Bong around.
 
-The blast is sized to what you see: it reaches 4m (a little past the 1.5m fireball, like TF2's splash, and far less than dynamite). Anyone in it is flung a few metres and loose items get knocked about; knockback and Injury are strongest in the middle and fade toward the edge.
+The fireball is 3.5m; the push reaches 6m. Zombies, other scouts, creatures and loose items in it are thrown hard (`Knockback`, 30 m/s in the middle); knockback and Injury are strongest in the middle and fade toward the edge. Like any explosion in PEAK, it cooks the food and other items lying in it.
 
 It does not replace the vanilla AntiZooka.
 
@@ -37,17 +37,18 @@ After one launch, edit `BepInEx/config/PeakBazooka.cfg`:
 | `[Bazooka]` | `Shots` | `0` | Rockets per bazooka. **0 = infinite**, otherwise limited. Host's value |
 | `[Bazooka]` | `Recoil` | `6` | Recoil strength in m/s (Standard). **0** = none |
 | `[Bazooka]` | `CarryWeight` | `4` | Stamina-bar weight (1 = 2.5) |
-| `[Bazooka]` | `ExplosionRadius` | `1.5` | Fireball radius in metres. Hits reach this far, but at least 4m |
+| `[Bazooka]` | `ExplosionRadius` | `3.5` | Fireball radius in metres. Hits reach this far, but at least 6m |
+| `[Bazooka]` | `Knockback` | `30` | How hard a blast throws zombies, other scouts, creatures and loose items, m/s in the middle (40% at the edge). The shooter's value is used |
 | `[Bazooka]` | `ExplosionVolume` | `0.2` | Explosion loudness vs dynamite |
-| `[Bazooka]` | `RocketSpeed` | `38` | Rocket flight speed in m/s |
+| `[Bazooka]` | `RocketSpeed` | `50` | Rocket flight speed in m/s |
 | `[Bazooka]` | `SelfDamage` | `0.25` | Standard: Injury from your own blast at point-blank (0–1), half at the edge |
-| `[Bazooka]` | `SelfKnockback` | `10` | Standard: how hard your own blast flings you, m/s at point-blank |
+| `[Bazooka]` | `SelfKnockback` | `22` | Standard: how hard your own blast flings you, m/s at point-blank |
 | `[Bazooka]` | `SelfKnockbackUp` | `0.75` | Standard: extra upward pull so a floor shot pops you up |
 | `[Bazooka]` | `GiveBazookaOnSpawn` | `false` | Host: one bazooka in hand per scout on climb spawn |
-| `[TF2]` | `LaunchSpeed` | `18` | Rocket jump speed, m/s at point-blank (half at 4m) |
+| `[TF2]` | `LaunchSpeed` | `20` | Rocket jump speed, m/s at point-blank (half at 6m) |
 | `[TF2]` | `LaunchUp` | `0.6` | Extra upward pull on a rocket jump. 0 = straight away from the blast |
-| `[TF2]` | `AirControl` | `20` | How fast WASD steers / brakes in the air, m/s² |
-| `[TF2]` | `Gravity` | `15` | Gravity during a rocket jump, m/s². Lower = floatier |
+| `[TF2]` | `AirControl` | `10` | How fast WASD steers / brakes in the air, m/s² |
+| `[TF2]` | `Gravity` | `10` | Gravity during a rocket jump, m/s². Lower = floatier |
 | `[Targets]` | `Scouts`, `Zombies`, `Scoutmaster`, `Spiders`, `Beetles`, `Scorpions`, `Frogs`, `Condors`, `Antlions`, `Ticks`, `Jellyfish`, `BeeSwarms`, `Beehives`, `Mandrakes`, `Spores`, `Dynamite`, `Coconuts`, `Tumbleweeds`, `BingBong`, `Balloons` | `true` | Whether rockets affect that target. Host's value. `Scouts` only matters in Standard |
 | `[Targets]` | `ScoutmasterHits` | `3` | Rockets to get rid of the Scoutmaster. Host's value |
 | `[Debug]` | `EnableDebugMode` | `false` | Host spawns test zombies, a bazooka, and luggage at Airport / Shore |

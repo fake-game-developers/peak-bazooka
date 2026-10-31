@@ -326,7 +326,7 @@ internal static class ShotgunCombat
             GunCharacterLaunch? launch = character.GetComponent<GunCharacterLaunch>();
             if (character.photonView.IsMine)
             {
-                launch?.Blast(direction, strength);
+                launch?.Blast(direction, strength, Plugin.Knockback);
             }
             else
             {
@@ -335,6 +335,7 @@ internal static class ShotgunCombat
                     character.photonView.Owner,
                     direction,
                     strength,
+                    Plugin.Knockback,
                     shotId);
             }
 
@@ -352,7 +353,7 @@ internal static class ShotgunCombat
             return true;
         }
 
-        source.photonView.RPC(nameof(BazookaShooter.RPC_GunImpact), RpcTarget.All, character.photonView.Owner, direction, strength, shotId);
+        source.photonView.RPC(nameof(BazookaShooter.RPC_GunImpact), RpcTarget.All, character.photonView.Owner, direction, strength, Plugin.Knockback, shotId);
         return true;
     }
 }

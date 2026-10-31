@@ -16,10 +16,13 @@ public class BazookaShooter : MonoBehaviourPun
     /// <summary>Standard mode: Injury on a scout in the middle of the blast; half that at its edge.</summary>
     private const float ScoutInjury = 0.4f;
 
-    /// <summary>Speed in m/s given to loose items on the ground at the edge / in the middle of the blast.</summary>
-    private const float LooseItemMinSpeed = 2f;
+    /// <summary>
+    /// Speed in m/s given to loose items on the ground at the edge / in the middle of the blast, at the default
+    /// <see cref="Plugin.Knockback"/>.
+    /// </summary>
+    private const float LooseItemMinSpeed = 4f;
 
-    private const float LooseItemMaxSpeed = 7f;
+    private const float LooseItemMaxSpeed = 14f;
 
     private Character? character;
 
@@ -179,22 +182,32 @@ public class BazookaShooter : MonoBehaviourPun
         }
 
         GamefeelHandler.instance.AddPerlinShakeProximity(point, Plugin.ExplosionShake);
-        PushLooseItems(point);
+        BlastLooseItems(point);
     }
 
     /// <summary>
-    /// Every client nudges the items on the ground that it owns (only the owner can move an item), like vanilla
-    /// dynamite does, but sized to this blast.
+    /// What a vanilla explosion (<see cref="AOE"/> with <c>cooksItems</c>) does to loose items: every client cooks and
+    /// pushes the items on the ground it controls (only the owner can change an item; <see cref="ItemCooking"/> syncs
+    /// the cooked state to everyone). The push is sized to this blast.
     /// </summary>
-    private static void PushLooseItems(Vector3 point)
+    private static void BlastLooseItems(Vector3 point)
     {
         float reach = Plugin.BlastReach;
-        var pushed = new HashSet<Item>();
+        var done = new HashSet<Item>();
         foreach (Collider collider in Physics.OverlapSphere(point, reach, HelperFunctions.DefaultMask, QueryTriggerInteraction.Ignore))
         {
             Item? item = collider != null ? collider.GetComponentInParent<Item>() : null;
-            if (item == null || item.rig == null || item.rig.isKinematic || item.itemState != ItemState.Ground
-                || !item.photonView.IsMine || !pushed.Add(item))
+            if (item == null || item.itemState != ItemState.Ground || !item.photonView.IsMine || !done.Add(item))
+            {
+                continue;
+            }
+
+            if (item.cooking != null)
+            {
+                item.cooking.FinishCooking();
+            }
+
+            if (item.rig == null || item.rig.isKinematic)
             {
                 continue;
             }
@@ -202,7 +215,9 @@ public class BazookaShooter : MonoBehaviourPun
             Vector3 away = item.Center() - point;
             float strength = Mathf.Clamp01(1f - away.magnitude / reach);
             Vector3 direction = away.sqrMagnitude < 0.0001f ? Vector3.up : (away.normalized + Vector3.up * 0.6f).normalized;
-            item.rig.AddForce(direction * Mathf.Lerp(LooseItemMinSpeed, LooseItemMaxSpeed, strength), ForceMode.VelocityChange);
+            item.rig.AddForce(
+                direction * (Mathf.Lerp(LooseItemMinSpeed, LooseItemMaxSpeed, strength) * Plugin.KnockbackScale),
+                ForceMode.VelocityChange);
         }
     }
 
@@ -284,7 +299,7 @@ public class BazookaShooter : MonoBehaviourPun
         }
 
         Vector3 center = shooter.Center;
-        // Chest-to-crater is ~1m on a floor shot, near the edge of a 1.5m fireball.
+        // Chest-to-crater is ~1m on a floor shot.
         // Measure the nearest body collider so a jump at your feet still launches.
         float distance = NearestBlastDistance(shooter, point, center);
         Vector3 away = center - point;
@@ -389,7 +404,7 @@ public class BazookaShooter : MonoBehaviourPun
     }
 
     [PunRPC]
-    public void RPC_GunImpact(Photon.Realtime.Player? hitPlayer, Vector3 direction, float strength, int shotId, PhotonMessageInfo info)
+    public void RPC_GunImpact(Photon.Realtime.Player? hitPlayer, Vector3 direction, float strength, float knockback, int shotId, PhotonMessageInfo info)
     {
         if (hitPlayer == null || !hitPlayer.IsLocal)
         {
@@ -403,15 +418,15 @@ public class BazookaShooter : MonoBehaviourPun
         }
 
         int targetId = local.photonView.ViewID;
-        if (!ShotLedger.TryConsumeOrDeferHit(info.Sender, shotId, targetId, () => ApplyGunImpact(local, direction, strength)))
+        if (!ShotLedger.TryConsumeOrDeferHit(info.Sender, shotId, targetId, () => ApplyGunImpact(local, direction, strength, knockback)))
         {
             return;
         }
 
-        ApplyGunImpact(local, direction, strength);
+        ApplyGunImpact(local, direction, strength, knockback);
     }
 
-    private static void ApplyGunImpact(Character local, Vector3 direction, float strength)
+    private static void ApplyGunImpact(Character local, Vector3 direction, float strength, float knockback)
     {
         // TF2 mode never hurts scouts. The shooter already skips us; this covers a shot fired before the mode changed.
         if (!ShootableRules.Scouts.Enabled || Plugin.Tf2Mode)
@@ -420,7 +435,7 @@ public class BazookaShooter : MonoBehaviourPun
         }
 
         strength = Mathf.Clamp01(strength);
-        local.GetComponent<GunCharacterLaunch>().Blast(direction, strength);
+        local.GetComponent<GunCharacterLaunch>().Blast(direction, strength, knockback);
         local.refs.afflictions.AddAffliction(new Affliction_AdjustStatus(
             CharacterAfflictions.STATUSTYPE.Injury,
             ScoutInjury * Mathf.Lerp(0.5f, 1f, strength),
