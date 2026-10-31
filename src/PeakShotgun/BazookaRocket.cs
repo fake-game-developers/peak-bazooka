@@ -72,10 +72,11 @@ internal sealed class BazookaRocket : MonoBehaviour
     }
 
     /// <summary>
-    /// Nearest thing this step's sweep touches, skipping the shooter. A single SphereCast stops at the first
-    /// collider: when that was the shooter's own arm the whole step was skipped, so a zombie right in front of you
-    /// was flown through. It also misses colliders the rocket starts inside (a zombie on top of you); the
-    /// "All" query reports those at distance 0.
+    /// Nearest thing this step's sweep touches, skipping the shooter and what they carry. A single SphereCast stops
+    /// at the first collider: when that was the shooter's own arm the whole step was skipped, so a zombie right in
+    /// front of you was flown through. Colliders the rocket starts inside come back at distance 0; of those only
+    /// another scout's or zombie's body counts (one on top of you). Everything else it starts in — the bazooka it
+    /// leaves, trigger zones you stand in — would blow it up in your face.
     /// </summary>
     private bool TryFindImpact(Vector3 from, Vector3 direction, float distance, out Vector3 impact)
     {
@@ -87,6 +88,11 @@ internal sealed class BazookaRocket : MonoBehaviour
         {
             RaycastHit hit = Hits[i];
             if (hit.collider == null || hit.distance >= best || IsShooterCollider(hit.collider))
+            {
+                continue;
+            }
+
+            if (hit.distance <= 0f && (hit.collider.isTrigger || hit.collider.GetComponentInParent<Character>() == null))
             {
                 continue;
             }
@@ -106,7 +112,14 @@ internal sealed class BazookaRocket : MonoBehaviour
             return false;
         }
 
-        return collider.GetComponentInParent<Character>() == shooter;
+        if (collider.GetComponentInParent<Character>() == shooter)
+        {
+            return true;
+        }
+
+        // The bazooka it was fired from (and anything else in the shooter's hands) is not part of the character.
+        Item? item = collider.GetComponentInParent<Item>();
+        return item != null && item.holderCharacter == shooter;
     }
 
     private void Explode(Vector3 point)
