@@ -1,7 +1,0 @@
-newmtl M_Tarnished_Gold_Antizooka
-Kd 0.78 0.44 0.36
-map_Kd ../textures/Starboy_tex.png
-
-newmtl M_Scout_Star_Antizooka
-Kd 0.05 0.05 0.08
-map_Kd ../textures/star_edge.png
