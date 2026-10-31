@@ -1,27 +1,33 @@
 # Bazooka
 
-<!-- In-game screenshots: put them in media/ (img1.jpg … img4.jpg) and uncomment.
-![Bazooka preview](https://raw.githubusercontent.com/fake-game-developers/peak-bazooka/master/media/img1.jpg)
+![Holding the bazooka in first person](https://raw.githubusercontent.com/fake-game-developers/peak-bazooka/master/media/img1.jpg)
 
-![Bazooka preview](https://raw.githubusercontent.com/fake-game-developers/peak-bazooka/master/media/img2.jpg)
+![A scout carrying the bazooka on the Shore](https://raw.githubusercontent.com/fake-game-developers/peak-bazooka/master/media/img2.jpg)
 
-![Bazooka preview](https://raw.githubusercontent.com/fake-game-developers/peak-bazooka/master/media/img3.jpg)
+![The bazooka lying on the beach](https://raw.githubusercontent.com/fake-game-developers/peak-bazooka/master/media/img3.jpg)
 
-![Bazooka preview](https://raw.githubusercontent.com/fake-game-developers/peak-bazooka/master/media/img4.jpg)
--->
-
-A red-and-white bazooka for PEAK, built from the AntiZooka. Click to fire a rocket that explodes on impact: it throws zombies, scouts and creatures around, kills the critters that make the climb miserable, and cooks whatever food is lying in the blast. Or switch to **RocketJump** mode and use it to fly up the mountain.
+A red-and-white bazooka for PEAK, built from the AntiZooka. Click to fire a rocket that explodes on impact: it throws zombies, scouts and creatures around, kills the critters that make the climb miserable, and cooks whatever food is lying in the blast. That is **Standard** mode, the default. Switch to **RocketJump** mode and it stops hurting scouts and becomes a way to fly up the mountain.
 
 It is a new item next to the vanilla AntiZooka, which stays as it is.
 
 Found a bug or have an idea? Report it on [GitHub Issues](https://github.com/fake-game-developers/peak-bazooka/issues).
 
-## Modes
+## Two modes
 
-`Mode` in the config picks the rules. In multiplayer the host's choice applies to everyone.
+The bazooka has two modes. **Standard is the default.** Pick one with `Mode` under `[Bazooka]` in `PeakBazooka.cfg` (or in ModConfig in-game): `Mode = Standard` or `Mode = RocketJump`. You can switch mid-run; it applies on the next shot. In multiplayer the **host's** mode applies to everyone.
 
-- **Standard** (default): a weapon. Rockets injure and fling other scouts. Your own blast flings you as a ragdoll and hurts you too (a quarter of your health at point-blank).
-- **RocketJump**: rocket jumping in the style of TF2's soldier. Rockets **never hurt scouts**, you or anyone else. Your own blast launches you: keep your momentum, steer and brake with WASD, stay on your feet and take no fall damage when you land. Shoot the floor to go up, the floor behind you to go forward, a wall to go sideways. A rocket under you while you fall cancels the fall and launches you again, so jumps chain.
+| | **Standard** (default) | **RocketJump** |
+|---|---|---|
+| What it is for | A weapon | Getting around: rocket jumping in the style of TF2's soldier |
+| Other scouts | Injured (up to 0.4 Injury) and flung | Never hurt or pushed |
+| Your own blast | Ragdolls and flings you, and hurts you (a quarter of your health at point-blank) | Launches you on your feet: steer and brake with WASD, no damage, no fall damage when you land |
+| Recoil when firing | Pushes you back | None |
+| Zombies, creatures and everything else | Hit | Hit the same way |
+| Settings that apply | `SelfDamage`, `SelfKnockback`, `SelfKnockbackUp`, `Recoil` | The `[RocketJump]` section |
+
+**Standard:** stand back from your own blast. A floor shot at your feet throws you as a ragdoll, which you can use to get somewhere fast, at a cost.
+
+**RocketJump:** rockets never hurt any scout, you included. Shoot the floor to go up, the floor behind you to go forward, a wall to go sideways. A rocket under you while you fall cancels the fall and launches you again, so you can chain jumps up a cliff.
 
 ## What rockets do
 
@@ -63,7 +69,7 @@ Settings are in `BepInEx/config/PeakBazooka.cfg` (created on first launch), or i
 
 | Section | Key | Default | Meaning |
 |---|---|---|---|
-| `[Bazooka]` | `Mode` | `Standard` | `Standard` (a weapon) or `RocketJump` (no scout damage, rocket jumps). Host's value |
+| `[Bazooka]` | `Mode` | `Standard` | `Standard` (a weapon) or `RocketJump` (no scout damage, rocket jumps); see [Two modes](#two-modes). Host's value |
 | `[Bazooka]` | `Shots` | `0` | Rockets per bazooka. `0` = infinite. Host's value |
 | `[Bazooka]` | `Recoil` | `6` | How hard firing pushes you back, m/s (Standard). `0` = none |
 | `[Bazooka]` | `CarryWeight` | `4` | Stamina-bar weight while carried (1 = 2.5 on the bar; 4 = 10) |
@@ -149,7 +155,7 @@ The DLL is `artifacts/bin/Peak.Bazooka/release/PeakBazooka.dll`.
 
 ## Developers
 
-[AGENTS.md](AGENTS.md) is the code map: how the bazooka is cloned and repainted, how shots are authorized and hits replicated, the blast and rocket jump physics, and what not to touch. [antizooka/](antizooka/README.md) has the AntiZooka's textures, materials, mesh and concept art for anyone reworking the look.
+[AGENTS.md](AGENTS.md) is the code map: how the bazooka is cloned and repainted, how shots are authorized and hits replicated, the blast and rocket jump physics, and what not to touch. [antizooka/](antizooka/README.md) has the AntiZooka's textures for anyone reworking the look (not part of the build).
 
 | Path | What it is |
 |---|---|

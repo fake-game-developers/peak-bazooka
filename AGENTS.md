@@ -19,7 +19,7 @@ The rocket in flight is `RocketModel`: PEAK's `InertRocket` resource (the rocket
 | `src/PeakBazooka/icons/BazookaIcon.png` | Hotbar icon (the vanilla AntiZooka icon recoloured red/white; also downscaled to 256×256 as the package `icon.png`) |
 | `src/PeakBazooka/thunderstore.toml` | Thunderstore package metadata, dependencies and what goes in the zip |
 | `THUNDERSTORE.md` | The package readme on Thunderstore (images there need absolute URLs) |
-| `antizooka/` | AntiZooka textures, materials, mesh (with UVs) and concept art for reworking the look — see `antizooka/README.md`. No decompiled game code or sounds in the repo |
+| `antizooka/textures/` | The AntiZooka's textures, for reference when changing the look (`antizooka/README.md`). Not built or packaged |
 
 Embedded resource names in `Peak.Bazooka.csproj` must match `GetManifestResourceStream` strings.
 
@@ -39,7 +39,7 @@ Magazine is `Action_Ammo`. `Shots` default 0 = infinite (`totalUses = -1`). Host
 
 ## Release
 
-The package is built with `dotnet build Peak.Bazooka.slnx -c Release -target:PackTS` (tcli, `artifacts/thunderstore/`). `<Version>` in the csproj is the package version; bump it only when a release is asked for, together with a `CHANGELOG.md` section for that exact version (`.cursor/rules/changelog-on-release.mdc`). Keep the PEAKLib versions in `thunderstore.toml` equal to the csproj `PackageReference`s (the workflow checks). Screenshots go in `media/img1.jpg` … `img4.jpg`: uncomment them at the top of `README.md` and add the same raw GitHub URLs to the top of `THUNDERSTORE.md` (Thunderstore needs absolute URLs and may show HTML comments, so it has none). `.github/workflows/thunderstore.yml` is manual only (`workflow_dispatch`, `publish` input off by default) — do not add a push trigger unless the user asks.
+The package is built with `dotnet build Peak.Bazooka.slnx -c Release -target:PackTS` (tcli, `artifacts/thunderstore/`). `<Version>` in the csproj is the package version; bump it only when a release is asked for, together with a `CHANGELOG.md` section for that exact version (`.cursor/rules/changelog-on-release.mdc`). Keep the PEAKLib versions in `thunderstore.toml` equal to the csproj `PackageReference`s (the workflow checks). Screenshots are `media/img1.jpg` … `img3.jpg`, shown at the top of both `README.md` and `THUNDERSTORE.md` through raw GitHub URLs on `master` (Thunderstore needs absolute URLs), so they appear once pushed. `.github/workflows/thunderstore.yml` is manual only (`workflow_dispatch`, `publish` input off by default) — do not add a push trigger unless the user asks.
 
 ## Do not
 
