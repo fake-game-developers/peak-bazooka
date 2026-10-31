@@ -10,9 +10,9 @@ namespace Peak.Shotgun;
 /// </summary>
 internal sealed class TumbleweedTarget : ShotTarget<TumbleWeed>
 {
-    private const float PushSpeed = 22f;
+    private const float PushSpeed = 9f;
 
-    private const float PushLift = 7f;
+    private const float PushLift = 3f;
 
     private const float Spin = 12f;
 

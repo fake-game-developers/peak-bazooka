@@ -36,7 +36,7 @@ public partial class Plugin : BaseUnityPlugin
     /// <summary>Host-synced magazine size. 0 = infinite.</summary>
     internal static int ShotCount => HostConfigSync.ShotCount;
 
-    internal static int LocalConfiguredShots => Mathf.Max(0, shots?.Value ?? 8);
+    internal static int LocalConfiguredShots => Mathf.Max(0, shots?.Value ?? 0);
 
     internal static bool InfiniteShots => ShotCount <= 0;
 
@@ -65,7 +65,7 @@ public partial class Plugin : BaseUnityPlugin
 
     internal const float DefaultExplosionRadius = DynamiteExplosionRadius * DefaultExplosionVisualScale;
 
-    /// <summary>Hit radius in metres. The fireball is scaled to this same size.</summary>
+    /// <summary>Fireball radius in metres. Hits reach <see cref="BlastReach"/>.</summary>
     internal static float ExplosionRadius =>
         Mathf.Clamp(explosionRadius?.Value ?? DefaultExplosionRadius, 1f, 20f);
 
@@ -76,43 +76,61 @@ public partial class Plugin : BaseUnityPlugin
 
     internal static float ExplosionShake => 4f * (ExplosionRadius / DefaultExplosionRadius);
 
-    private static ConfigEntry<bool>? explosionOneShot;
-
-    internal static bool LocalExplosionOneShot => explosionOneShot?.Value ?? true;
-
-    /// <summary>Host-synced: one rocket defeats a shootable instead of counting as a single pellet.</summary>
-    internal static bool ExplosionOneShot => HostConfigSync.ExplosionOneShot;
-
-    internal static int ExplosionHits =>
-        ExplosionOneShot ? HitsToDefeatSettings.MaxHits : 1;
-
     private static ConfigEntry<float>? rocketSpeed;
 
     internal static float RocketSpeed => Mathf.Clamp(rocketSpeed?.Value ?? 38f, 8f, 80f);
 
+    private static ConfigEntry<BazookaMode>? mode;
+
+    internal static BazookaMode LocalMode => mode?.Value ?? BazookaMode.Standard;
+
+    /// <summary>Host-synced. Standard = a weapon; TF2 = no scout damage, rocket jumps fly.</summary>
+    internal static BazookaMode Mode => HostConfigSync.Mode;
+
+    internal static bool Tf2Mode => Mode == BazookaMode.TF2;
+
     private static ConfigEntry<float>? selfDamage;
 
-    /// <summary>Injury 0–1 from your own blast. 0 when <see cref="TF2RocketJump"/> is on.</summary>
-    internal static float SelfDamage =>
-        TF2RocketJump ? 0f : Mathf.Clamp(selfDamage?.Value ?? 0.05f, 0f, 1f);
+    /// <summary>Standard mode: Injury 0–1 from your own blast at point-blank.</summary>
+    internal static float SelfDamage => Mathf.Clamp(selfDamage?.Value ?? 0.25f, 0f, 1f);
 
     private static ConfigEntry<float>? selfKnockback;
 
-    /// <summary>Point-blank self-launch speed in m/s. Falls off with distance. 0 = no rocket jump.</summary>
-    internal static float SelfKnockback => Mathf.Clamp(selfKnockback?.Value ?? 16f, 0f, 40f);
+    /// <summary>Standard mode: point-blank ragdoll launch speed in m/s. Falls off with distance. 0 = none.</summary>
+    internal static float SelfKnockback => Mathf.Clamp(selfKnockback?.Value ?? 10f, 0f, 40f);
 
     private static ConfigEntry<float>? selfKnockbackUp;
 
-    /// <summary>Extra upward bias on the self-launch so a floor shot pops you up instead of sliding.</summary>
+    /// <summary>Standard mode: extra upward bias on the self-launch so a floor shot pops you up.</summary>
     internal static float SelfKnockbackUp => Mathf.Clamp(selfKnockbackUp?.Value ?? 0.75f, 0f, 2f);
 
-    private static ConfigEntry<bool>? tf2RocketJump;
+    /// <summary>
+    /// Hits reach at least this far. A 1.5m fireball as the hit sphere meant a near miss did nothing; like TF2's
+    /// splash, the blast reaches a little past what you see (dynamite's own was far bigger).
+    /// </summary>
+    internal const float MinBlastReach = 4f;
 
-    /// <summary>TF2 soldier: WASD rocket jump, no ragdoll, no self-Injury.</summary>
-    internal static bool TF2RocketJump => tf2RocketJump?.Value ?? false;
+    /// <summary>How far a rocket hits: <see cref="ExplosionRadius"/>, but at least <see cref="MinBlastReach"/>.</summary>
+    internal static float BlastReach => Mathf.Max(ExplosionRadius, MinBlastReach);
 
-    /// <summary>Own-blast ragdoll. Off when <see cref="TF2RocketJump"/> is on.</summary>
-    internal static bool SelfRagdoll => !TF2RocketJump;
+    private static ConfigEntry<float>? tf2LaunchSpeed;
+
+    /// <summary>TF2 mode: point-blank launch speed in m/s. Half of it at the edge of the blast.</summary>
+    internal static float Tf2LaunchSpeed => Mathf.Clamp(tf2LaunchSpeed?.Value ?? 18f, 0f, RocketFlight.MaxSpeed);
+
+    private static ConfigEntry<float>? tf2LaunchUp;
+
+    internal static float Tf2LaunchUp => Mathf.Clamp(tf2LaunchUp?.Value ?? 0.6f, 0f, 2f);
+
+    private static ConfigEntry<float>? tf2AirControl;
+
+    /// <summary>TF2 mode: WASD acceleration in the air, m/s².</summary>
+    internal static float Tf2AirControl => Mathf.Clamp(tf2AirControl?.Value ?? 20f, 0f, 100f);
+
+    private static ConfigEntry<float>? tf2Gravity;
+
+    /// <summary>TF2 mode: gravity during a rocket jump, m/s².</summary>
+    internal static float Tf2Gravity => Mathf.Clamp(tf2Gravity?.Value ?? 15f, 1f, 40f);
 
     private static ConfigEntry<bool>? debugMode;
 
@@ -149,8 +167,15 @@ public partial class Plugin : BaseUnityPlugin
     {
         Instance = this;
         Log = Logger;
-        shots = Config.Bind("Bazooka", "Shots", 8, new ConfigDescription(
-            "Rockets in each bazooka. 0 = infinite. Host's value is used in multiplayer.",
+        mode = Config.Bind(
+            "Bazooka",
+            "Mode",
+            BazookaMode.Standard,
+            "Standard: a weapon. Rockets injure and ragdoll scouts, and your own blast flings and hurts you. "
+            + "TF2: rockets never hurt scouts (you or anyone else); your own blast is a TF2 soldier rocket jump with WASD air control. "
+            + "Creatures are hit in both modes. Host's value is used in multiplayer.");
+        shots = Config.Bind("Bazooka", "Shots", 0, new ConfigDescription(
+            "Rockets in each bazooka. 0 = infinite; any other number is a limited magazine with no refill. Host's value is used in multiplayer.",
             new AcceptableValueRange<int>(0, 999)));
         recoil = Config.Bind("Bazooka", "Recoil", 6f, new ConfigDescription(
             "Metres per second the shooter is pushed back, opposite the aim, on each shot. 0 = no recoil.",
@@ -159,40 +184,43 @@ public partial class Plugin : BaseUnityPlugin
             "Stamina-bar weight of a carried bazooka, in PEAK item units. 1 = 2.5. Default 4 = 10 on the bar.",
             new AcceptableValueRange<int>(0, MaxCarryWeight)));
         explosionRadius = Config.Bind("Bazooka", "ExplosionRadius", DefaultExplosionRadius, new ConfigDescription(
-            "Blast radius in metres. Hits and the fireball are this big.",
+            $"Fireball radius in metres. Hits reach this far, but at least {MinBlastReach}m.",
             new AcceptableValueRange<float>(1f, 20f)));
         explosionVolume = Config.Bind("Bazooka", "ExplosionVolume", 0.2f, new ConfigDescription(
             "Explosion loudness vs vanilla dynamite. Takes effect on the next blast; no restart.",
             new AcceptableValueRange<float>(0f, 1f)));
-        explosionOneShot = Config.Bind(
-            "Bazooka",
-            "ExplosionOneShot",
-            true,
-            "One rocket knocks out everyone in the blast. When false, a rocket is one hit (zombies take two, Scoutmaster four). Host's value in multiplayer.");
         rocketSpeed = Config.Bind("Bazooka", "RocketSpeed", 38f, new ConfigDescription(
             "Rocket flight speed in metres per second.",
             new AcceptableValueRange<float>(8f, 80f)));
-        selfDamage = Config.Bind("Bazooka", "SelfDamage", 0.05f, new ConfigDescription(
-            "Injury from your own blast (0–1). Ignored when TF2RocketJump is on (then self-damage is 0). Other scouts still take full blast injury.",
+        selfDamage = Config.Bind("Bazooka", "SelfDamage", 0.25f, new ConfigDescription(
+            "Standard mode: Injury from your own blast at point-blank (0–1); half that at the edge of the blast. TF2 mode: none. Other scouts take 0.4.",
             new AcceptableValueRange<float>(0f, 1f)));
-        selfKnockback = Config.Bind("Bazooka", "SelfKnockback", 16f, new ConfigDescription(
-            "How hard your own blast launches you, in metres per second at point-blank. Falls off to zero at ExplosionRadius. 0 = no rocket jump.",
+        selfKnockback = Config.Bind("Bazooka", "SelfKnockback", 10f, new ConfigDescription(
+            $"Standard mode: how hard your own blast flings you (ragdolled), in metres per second at point-blank. Falls off to zero at the edge of the blast ({MinBlastReach}m, or ExplosionRadius if bigger). 0 = none.",
             new AcceptableValueRange<float>(0f, 40f)));
         selfKnockbackUp = Config.Bind("Bazooka", "SelfKnockbackUp", 0.75f, new ConfigDescription(
-            "Extra upward pull on a self-blast so shooting the ground pops you up instead of sideways.",
+            "Standard mode: extra upward pull on a self-blast so shooting the ground pops you up instead of sideways.",
             new AcceptableValueRange<float>(0f, 2f)));
-        tf2RocketJump = Config.Bind(
-            "Bazooka",
-            "TF2RocketJump",
-            false,
-            "TF2 soldier rocket jump: WASD in the air, no ragdoll, no self-Injury (and no fall Injury from the jump). Next blast; no restart.");
+        tf2LaunchSpeed = Config.Bind("TF2", "LaunchSpeed", 18f, new ConfigDescription(
+            $"Rocket jump speed in metres per second at point-blank; half that at the edge of the blast ({MinBlastReach}m, or ExplosionRadius if bigger). Rockets fired mid-air add up (capped at {RocketFlight.MaxSpeed}).",
+            new AcceptableValueRange<float>(0f, RocketFlight.MaxSpeed)));
+        tf2LaunchUp = Config.Bind("TF2", "LaunchUp", 0.6f, new ConfigDescription(
+            "Extra upward pull on a rocket jump. 0 = pure TF2 (straight away from the blast).",
+            new AcceptableValueRange<float>(0f, 2f)));
+        tf2AirControl = Config.Bind("TF2", "AirControl", 20f, new ConfigDescription(
+            "How fast WASD steers or brakes you during a rocket jump, in m/s². Holding forward never pushes you past running speed (like TF2).",
+            new AcceptableValueRange<float>(0f, 100f)));
+        tf2Gravity = Config.Bind("TF2", "Gravity", 15f, new ConfigDescription(
+            "Gravity during a rocket jump, in m/s². Lower = floatier, longer jumps.",
+            new AcceptableValueRange<float>(1f, 40f)));
         giveShotgunOnSpawn = Config.Bind(
             "Bazooka",
             "GiveBazookaOnSpawn",
             false,
             "Host only: give every scout one bazooka in hand when they spawn into the climb or join mid-run (Shore and later — not at the Airport).");
+        ShootableRules.Bind(Config);
         debugMode = Config.Bind("Debug", "EnableDebugMode", false, "Host spawns test zombies, a bazooka and luggage near the player at the Airport and on the Shore.");
-        MigrateSelfRagdollToTf2();
+        MigrateOldTf2Switches();
         MigrateExplosionRadiusToMatchVisual();
         DropRetiredConfigKeys();
         GameCompat.PatchAll(new Harmony(Name ?? "PeakBazooka"));
@@ -223,7 +251,7 @@ public partial class Plugin : BaseUnityPlugin
         foreach (ConfigDefinition key in leftover.Keys)
         {
             if (key.Section is "HitsToDefeat" or "Shootables"
-                || key.Key is "EnableRecoil" or "CanSpawnOnAnyBiome" or "SelfRagdoll" or "ExplosionVisualScale")
+                || key.Key is "EnableRecoil" or "CanSpawnOnAnyBiome" or "SelfRagdoll" or "TF2RocketJump" or "ExplosionVisualScale" or "ExplosionOneShot")
             {
                 drop.Add(key);
             }
@@ -244,9 +272,10 @@ public partial class Plugin : BaseUnityPlugin
     }
 
     /// <summary>
-    /// <c>SelfRagdoll = false</c> was the old TF2 switch. Copy it onto <see cref="TF2RocketJump"/> then drop the key.
+    /// The old TF2 switches were <c>TF2RocketJump = true</c> and, before that, <c>SelfRagdoll = false</c>.
+    /// Either one turns on <see cref="BazookaMode.TF2"/>; both keys are dropped.
     /// </summary>
-    private void MigrateSelfRagdollToTf2()
+    private void MigrateOldTf2Switches()
     {
         object? bag = AccessTools.Property(typeof(ConfigFile), "OrphanedEntries")?.GetValue(Config)
             ?? AccessTools.Field(typeof(ConfigFile), "orphanedEntries")?.GetValue(Config);
@@ -255,30 +284,37 @@ public partial class Plugin : BaseUnityPlugin
             return;
         }
 
-        ConfigDefinition? selfRagdollKey = null;
-        string? raw = null;
+        var found = new List<ConfigDefinition>();
+        bool wantedTf2 = false;
         foreach (KeyValuePair<ConfigDefinition, string> pair in leftover)
         {
-            if (pair.Key.Key == "SelfRagdoll")
+            string raw = pair.Value?.Trim() ?? "";
+            if (pair.Key.Key == "TF2RocketJump")
             {
-                selfRagdollKey = pair.Key;
-                raw = pair.Value;
-                break;
+                found.Add(pair.Key);
+                wantedTf2 |= raw.Equals("true", StringComparison.OrdinalIgnoreCase) || raw == "1";
+            }
+            else if (pair.Key.Key == "SelfRagdoll")
+            {
+                found.Add(pair.Key);
+                wantedTf2 |= raw.Equals("false", StringComparison.OrdinalIgnoreCase) || raw == "0";
             }
         }
 
-        if (selfRagdollKey == null)
+        if (found.Count == 0)
         {
             return;
         }
 
-        leftover.Remove(selfRagdollKey);
-        bool oldWasAirControl = raw != null
-            && (raw.IndexOf("false", StringComparison.OrdinalIgnoreCase) >= 0 || raw.Trim() == "0");
-        if (oldWasAirControl && tf2RocketJump != null && !tf2RocketJump.Value)
+        foreach (ConfigDefinition key in found)
         {
-            tf2RocketJump.Value = true;
-            Log.LogInfo("Migrated SelfRagdoll = false to TF2RocketJump = true.");
+            leftover.Remove(key);
+        }
+
+        if (wantedTf2 && mode != null)
+        {
+            mode.Value = BazookaMode.TF2;
+            Log.LogInfo("Migrated the old TF2 rocket jump switch to Mode = TF2.");
         }
 
         Config.Save();
@@ -380,7 +416,7 @@ public partial class Plugin : BaseUnityPlugin
             ApplyLuggageSpawnConfig();
             HostConfigSync.SyncFromLocalRole(reason);
             Log.LogInfo(
-                $"Config reloaded ({reason}); shots = {(InfiniteShots ? "infinite" : ShotCount.ToString())}, TF2RocketJump = {TF2RocketJump}.");
+                $"Config reloaded ({reason}); shots = {(InfiniteShots ? "infinite" : ShotCount.ToString())}, Mode = {Mode}.");
         }
         catch (Exception e)
         {
@@ -589,19 +625,11 @@ public partial class Plugin : BaseUnityPlugin
         item.UIData.mainInteractPrompt = ShotgunText.ShootPrompt;
 
         Action_Gun gun = gunObject.AddComponent<Action_Gun>();
-        gun.maxDistance = 80f;
-        gun.pelletRadius = 0.2f;
         gun.fireRate = 0.8f;
-        gun.spread = 0f;
-        gun.pelletCount = 1;
         gun.OnHeld = false;
         gun.OnPressed = true;
         gun.OnCastFinished = false;
         gun.spawnTransform = spawn;
-        gun.afflictionsOnHit =
-        [
-            new Affliction_AdjustStatus(CharacterAfflictions.STATUSTYPE.Injury, 0.45f, 1f),
-        ];
         if (gunObject.TryGetComponent(out ItemUseFeedback feedback))
         {
             feedback.sfxUsed = null;
@@ -636,13 +664,156 @@ public partial class Plugin : BaseUnityPlugin
             Dynamite? dynamite = candidate != null ? candidate.GetComponent<Dynamite>() : null;
             if (dynamite != null && dynamite.explosionPrefab != null)
             {
-                ExplosionPrefab = dynamite.explosionPrefab;
-                Log.LogInfo($"Explosion VFX uses {dynamite.explosionPrefab.name}.");
+                ExplosionPrefab = BuildVisualOnlyExplosion(dynamite.explosionPrefab);
                 return;
             }
         }
 
         Log.LogWarning("No dynamite explosion prefab was found. Blasts will still deal damage.");
+    }
+
+    /// <summary>
+    /// Dynamite's explosion carries an <see cref="AOE"/>: dynamite-sized knockback, ragdoll and Injury on every
+    /// scout in its own range, plus launched items, whatever size the fireball is drawn at. That is what made a
+    /// small rocket hit like a nuke (and hurt scouts in TF2 mode). Keep an inactive copy with only the visuals and
+    /// sound; <see cref="BazookaShooter"/> applies the rocket's own blast.
+    /// </summary>
+    private static GameObject BuildVisualOnlyExplosion(GameObject source)
+    {
+        // Copy it inactive so no Awake / OnEnable (an AOE can fire on enable) runs before it is stripped.
+        bool sourceWasActive = source.activeSelf;
+        source.SetActive(false);
+        GameObject template = Instantiate(source);
+        source.SetActive(sourceWasActive);
+
+        template.name = source.name + " (Bazooka)";
+        DontDestroyOnLoad(template);
+        foreach (AOE aoe in template.GetComponentsInChildren<AOE>(true))
+        {
+            DestroyImmediate(aoe);
+        }
+
+        foreach (Rigidbody rig in template.GetComponentsInChildren<Rigidbody>(true))
+        {
+            DestroyImmediate(rig);
+        }
+
+        foreach (Collider collider in template.GetComponentsInChildren<Collider>(true))
+        {
+            DestroyImmediate(collider);
+        }
+
+        var kept = new SortedSet<string>();
+        foreach (Component component in template.GetComponentsInChildren<Component>(true))
+        {
+            if (component != null && component is not Transform)
+            {
+                kept.Add(component.GetType().Name);
+            }
+        }
+
+        Log.LogInfo($"Explosion VFX uses {source.name} without its damage (kept: {string.Join(", ", kept)}).");
+
+        var shortened = new List<string>();
+        ShortenSmoke(template, shortened);
+        foreach (ExplosionEffect effect in template.GetComponentsInChildren<ExplosionEffect>(true))
+        {
+            // The fireball orbs are spawned from their own prefab, outside this hierarchy: shorten a copy of it.
+            if (effect.explosionOrb != null && !effect.explosionOrb.transform.IsChildOf(template.transform))
+            {
+                effect.explosionOrb = ShortSmokeCopy(effect.explosionOrb, shortened);
+            }
+        }
+
+        Log.LogInfo(shortened.Count > 0
+            ? $"Explosion smoke capped at {SmokeSeconds}s: {string.Join("; ", shortened)}."
+            : "Explosion smoke already fades within " + SmokeSeconds + "s.");
+        return template;
+    }
+
+    /// <summary>
+    /// Longest any explosion particle lives. Dynamite's smoke hangs around for ~5s, sized for its own big blast;
+    /// next to a 1.5m fireball it is a dark smudge long after the bang. Particles fade over their lifetime, so a
+    /// shorter one still fades out smoothly, just sooner.
+    /// </summary>
+    internal const float SmokeSeconds = 1.5f;
+
+    /// <summary>An explosion object still around after this long is removed.</summary>
+    internal const float ExplosionCleanupSeconds = 4f;
+
+    private static GameObject? fxTemplateHolder;
+
+    /// <summary>
+    /// Copy of an effect prefab with <see cref="ShortenSmoke"/> applied. It sits under an inactive holder so none of
+    /// its scripts run, while <see cref="UnityEngine.Object.Instantiate(UnityEngine.Object)"/> still makes active copies.
+    /// </summary>
+    private static GameObject ShortSmokeCopy(GameObject prefab, List<string> shortened)
+    {
+        if (fxTemplateHolder == null)
+        {
+            fxTemplateHolder = new GameObject("PeakBazooka FX templates");
+            fxTemplateHolder.SetActive(false);
+            DontDestroyOnLoad(fxTemplateHolder);
+        }
+
+        GameObject copy = Instantiate(prefab, fxTemplateHolder.transform);
+        copy.name = prefab.name;
+        ShortenSmoke(copy, shortened);
+        return copy;
+    }
+
+    private static void ShortenSmoke(GameObject root, List<string> shortened)
+    {
+        foreach (ParticleSystem particles in root.GetComponentsInChildren<ParticleSystem>(true))
+        {
+            ParticleSystem.MainModule main = particles.main;
+            ParticleSystem.MinMaxCurve lifetime = main.startLifetime;
+            float longest = lifetime.mode switch
+            {
+                ParticleSystemCurveMode.Constant => lifetime.constant,
+                ParticleSystemCurveMode.TwoConstants => lifetime.constantMax,
+                _ => lifetime.curveMultiplier,
+            };
+
+            bool longLived = longest > SmokeSeconds;
+            bool longEmitter = !main.loop && main.duration > SmokeSeconds && !particles.isPlaying;
+            if (!longLived && !longEmitter)
+            {
+                continue;
+            }
+
+            if (longLived)
+            {
+                float scale = SmokeSeconds / longest;
+                switch (lifetime.mode)
+                {
+                    case ParticleSystemCurveMode.Constant:
+                        lifetime.constant *= scale;
+                        break;
+                    case ParticleSystemCurveMode.TwoConstants:
+                        lifetime.constantMin *= scale;
+                        lifetime.constantMax *= scale;
+                        break;
+                    default:
+                        lifetime.curveMultiplier *= scale;
+                        break;
+                }
+
+                main.startLifetime = lifetime;
+            }
+
+            if (longEmitter)
+            {
+                main.duration = SmokeSeconds;
+            }
+
+            shortened.Add($"{particles.name} {longest:0.#}s");
+        }
+
+        foreach (RemoveAfterSeconds remove in root.GetComponentsInChildren<RemoveAfterSeconds>(true))
+        {
+            remove.seconds = Mathf.Min(remove.seconds, ExplosionCleanupSeconds);
+        }
     }
 
     /// <summary>
@@ -737,4 +908,13 @@ public partial class Plugin : BaseUnityPlugin
 
         return null;
     }
+}
+
+internal enum BazookaMode
+{
+    /// <summary>A weapon: rockets injure and ragdoll scouts, your own blast flings and hurts you.</summary>
+    Standard,
+
+    /// <summary>No scout damage. Your own blast is a TF2 soldier rocket jump.</summary>
+    TF2,
 }

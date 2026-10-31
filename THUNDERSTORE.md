@@ -1,6 +1,11 @@
 # Bazooka
 
-Clones PEAK's AntiZooka into a bazooka. Same model, hands, and muzzle flash — click to fire an exploding rocket instead of an antigravity bubble. You ragdoll from your own blast by default; `TF2RocketJump = true` is a TF2 soldier rocket jump (WASD, gravity still pulls, no tumble, no self-Injury).
+Clones PEAK's AntiZooka into a bazooka. Same model, hands, and muzzle flash — click to fire an exploding rocket instead of an antigravity bubble.
+
+- **Standard mode:** a weapon. Rockets injure and knock down scouts; your own blast flings you.
+- **TF2 mode:** rockets never hurt scouts. Your own blast is a TF2 soldier rocket jump: keep your momentum, steer with WASD, no fall damage.
+
+Spiders, beetles, scorpions, frogs, condors, antlions and zombies go down in one rocket, the Scoutmaster in three. Every target can be switched off. The blast is sized to the fireball: it reaches 4m and flings what is in it a few metres, not a dynamite launch.
 
 It does not replace the vanilla AntiZooka.
 
@@ -14,11 +19,11 @@ It does not replace the vanilla AntiZooka.
 
 - **Roots:** at least two random luggage always pack a bazooka.
 - **Other biomes:** rare luggage rolls.
-- **Ammo:** `Shots` rockets per bazooka (default 8). Set to **0** for infinite. No campfire refill.
+- **Ammo:** infinite by default (`Shots = 0`). Any other number is a limited magazine with no refill.
 
 ## Configuration
 
-After one launch, edit `BepInEx/config/PeakBazooka.cfg` (no restart; saves apply while PEAK is running). Host-synced in multiplayer: `Shots`, `ExplosionOneShot`. Per player: recoil, carry weight, `ExplosionRadius` (hits and fireball, default 1.5m), volume, rocket speed, self-damage, self-knockback, `TF2RocketJump`. `Shots = 0` is infinite. Explosions always hit everyone; one rocket knocks them out unless you turn `ExplosionOneShot` off.
+After one launch, edit `BepInEx/config/PeakBazooka.cfg` (no restart; saves apply while PEAK is running). Host-synced in multiplayer: `Mode`, `Shots` and the `[Targets]` switches (all on; `ScoutmasterHits` = 3). Per player: recoil, carry weight, `ExplosionRadius` (default 1.5m), volume, rocket speed, Standard self-blast (`SelfDamage`, `SelfKnockback`) and the `[TF2]` rocket jump tuning (`LaunchSpeed`, `LaunchUp`, `AirControl`, `Gravity`).
 
 ## Install
 

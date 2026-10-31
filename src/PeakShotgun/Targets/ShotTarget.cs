@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Peak.Shotgun;
 
 /// <summary>
-/// Non-player targets, as sent to the host in <see cref="Action_Gun.RPC_HostShootTarget"/>.
+/// Non-player targets, as sent to the host in <see cref="BazookaShooter.RPC_HostShootTarget"/>.
 /// Wire format: never renumber, only append.
 /// </summary>
 internal enum ShotTargetKind
@@ -35,30 +35,30 @@ internal enum ShotTargetKind
 /// <summary>What the host knows about a hit when it defeats a target.</summary>
 internal readonly struct ShotHit
 {
-    internal ShotHit(PhotonView? view, Action_Gun? gun, int extra)
+    internal ShotHit(PhotonView? view, BazookaShooter? shooter, int extra)
     {
         View = view;
-        Gun = gun;
+        Shooter = shooter;
         Extra = extra;
     }
 
     /// <summary>The target's own Photon view (null for a target without one).</summary>
     internal PhotonView? View { get; }
 
-    /// <summary>The shooter's gun as this client simulates it; null when unknown.</summary>
-    internal Action_Gun? Gun { get; }
+    /// <summary>The shooting scout as this client simulates it; null when unknown.</summary>
+    internal BazookaShooter? Shooter { get; }
 
     internal int Extra { get; }
 
-    /// <summary>Unit vector from the shooter's muzzle to <paramref name="point"/>; straight up when the shooter is unknown.</summary>
+    /// <summary>Unit vector from the shooter to <paramref name="point"/>; straight up when the shooter is unknown.</summary>
     internal Vector3 DirectionTo(Vector3 point)
     {
-        if (Gun == null)
+        if (Shooter == null)
         {
             return Vector3.up;
         }
 
-        Vector3 from = Gun.spawnTransform != null ? Gun.spawnTransform.position : Gun.transform.position;
+        Vector3 from = Shooter.Character != null ? Shooter.Character.Center : Shooter.transform.position;
         Vector3 direction = point - from;
         return direction.sqrMagnitude > 0.0001f ? direction.normalized : Vector3.up;
     }
@@ -86,14 +86,14 @@ internal abstract class ShotTarget
 {
     internal abstract ShotTargetKind Kind { get; }
 
-    /// <summary>Always enabled. Hit count is hardcoded unless one-shot is on.</summary>
+    /// <summary>The <c>[Targets]</c> switch and hit count for this target.</summary>
     internal abstract ShootableRule Rule { get; }
 
     internal virtual ShotStage Stage => ShotStage.World;
 
     /// <summary>
-    /// True when no vanilla RPC carries the defeat: the host then broadcasts it (<see cref="Action_Gun.RPC_ApplyWorldDefeat"/>
-    /// and room property <c>PeakShotgun_WorldDown</c>) and every other client runs <see cref="ClientDefeat"/>.
+    /// True when no vanilla RPC carries the defeat: the host then broadcasts it (<see cref="BazookaShooter.RPC_ApplyWorldDefeat"/>
+    /// and room property <c>PeakBazooka_WorldDown</c>) and every other client runs <see cref="ClientDefeat"/>.
     /// </summary>
     internal virtual bool BroadcastsDefeat => false;
 
@@ -119,6 +119,11 @@ internal abstract class ShotTarget
 
     /// <summary>Host or offline: the hit count was reached.</summary>
     internal abstract void Defeat(Component target, ShotHit hit);
+
+    /// <summary>Host or offline: a rocket that did not reach the hit count yet (feedback only).</summary>
+    internal virtual void PartialHit(Component target, ShotHit hit)
+    {
+    }
 
     /// <summary>
     /// Every client, when <see cref="Defeat"/> called <see cref="ShotgunCombat.BroadcastEffect"/>: short-lived
@@ -193,6 +198,8 @@ internal abstract class ShotTarget<T> : ShotTarget
 
     internal sealed override void Defeat(Component target, ShotHit hit) => Defeat((T)target, hit);
 
+    internal sealed override void PartialHit(Component target, ShotHit hit) => PartialHit((T)target, hit);
+
     internal sealed override void Effect(Component target, Vector3 push, int variant)
     {
         if (target is T typed)
@@ -204,6 +211,10 @@ internal abstract class ShotTarget<T> : ShotTarget
     protected virtual PhotonView? ViewOf(T target) => target.GetComponentInParent<PhotonView>();
 
     protected abstract void Defeat(T target, ShotHit hit);
+
+    protected virtual void PartialHit(T target, ShotHit hit)
+    {
+    }
 
     protected virtual void Effect(T target, Vector3 push, int variant)
     {

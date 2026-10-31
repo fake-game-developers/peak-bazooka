@@ -10,9 +10,9 @@ namespace Peak.Shotgun;
 /// </summary>
 internal sealed class BingBongTarget : ShotTarget<BingBong>
 {
-    private const float PushSpeed = 6f;
+    private const float PushSpeed = 4f;
 
-    private const float PushLift = 5f;
+    private const float PushLift = 3f;
 
     private const float Spin = 15f;
 

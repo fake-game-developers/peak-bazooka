@@ -2,7 +2,14 @@
 
 Clones PEAK's AntiZooka into a bazooka. Same model, hands, and muzzle flash — click to fire an exploding rocket instead of an antigravity bubble.
 
-A click launches one rocket. The blast injures other scouts and knocks them back. Your own blast mostly launches you instead. You ragdoll from that blast unless you set `TF2RocketJump = true` — then it is a TF2 soldier rocket jump (WASD in the air, gravity still pulls, no tumble, **no self-Injury**). `SelfDamage` only applies when that is off. Zombies ignore Injury: the first hit flips them, the second knocks them out. You can also blast condors, antlions, Gloom frogs, beehives, ticks, jellyfish, coconuts, bee swarms, tumbleweeds, balloons, dynamite, and Bing Bong.
+A click launches one rocket. There are two modes (`Mode` in the config, the host's choice in multiplayer):
+
+- **Standard** — a weapon. The blast injures and ragdolls other scouts. Your own blast flings you as a ragdoll and hurts you too (`SelfDamage`, a quarter of your health at point-blank).
+- **TF2** — a TF2 soldier's rocket launcher. Rockets **never hurt scouts**, you or anyone else. Your own blast is a rocket jump: you keep your momentum, steer and brake with WASD, stay on your feet, and take no fall damage when you land. Shoot the floor to go up, the floor behind you to go forward, a wall to go sideways. Rockets fired mid-air add up, so jumps chain.
+
+Creatures are hit in both modes, and each kind can be switched off under `[Targets]` (all on by default). One rocket kills a spider, beetle, scorpion, frog, condor or antlion and knocks out a zombie. Scoutmaster Myres takes 3 rockets (`ScoutmasterHits`): each one knocks him down, the last sends him away for the rest of the map. Rockets also smash jellyfish, beehives, mandrakes, spore bombs and dynamite, knock ticks off scouts and coconuts off trees, and push tumbleweeds and Bing Bong around.
+
+The blast is sized to what you see: it reaches 4m (a little past the 1.5m fireball, like TF2's splash, and far less than dynamite). Anyone in it is flung a few metres and loose items get knocked about; knockback and Injury are strongest in the middle and fade toward the edge.
 
 It does not replace the vanilla AntiZooka.
 
@@ -18,7 +25,7 @@ It does not replace the vanilla AntiZooka.
 - **Roots:** every run, **at least two random luggage** on the Roots map are forced to contain a bazooka.
 - **Other biomes:** luggage can roll a bazooka (**RidiculouslyRare**).
 - **Cap:** at most **4** luggage per biome can contain a bazooka in a single run.
-- **Ammo:** `Shots` rockets per bazooka (default 8). Set to **0** for infinite. No campfire refill.
+- **Ammo:** infinite by default (`Shots = 0`). Any other number is a limited magazine with no refill.
 
 ## Configuration
 
@@ -26,21 +33,26 @@ After one launch, edit `BepInEx/config/PeakBazooka.cfg`:
 
 | Section | Key | Default | Meaning |
 |---|---|---|---|
-| `[Bazooka]` | `Shots` | `8` | Rockets per bazooka (host's value in multiplayer). **0 = infinite** |
-| `[Bazooka]` | `Recoil` | `6` | Recoil strength in m/s. **0** = none |
+| `[Bazooka]` | `Mode` | `Standard` | `Standard` (a weapon) or `TF2` (no scout damage, rocket jumps). Host's value |
+| `[Bazooka]` | `Shots` | `0` | Rockets per bazooka. **0 = infinite**, otherwise limited. Host's value |
+| `[Bazooka]` | `Recoil` | `6` | Recoil strength in m/s (Standard). **0** = none |
 | `[Bazooka]` | `CarryWeight` | `4` | Stamina-bar weight (1 = 2.5) |
-| `[Bazooka]` | `ExplosionRadius` | `1.5` | Blast radius in metres (hits and fireball) |
+| `[Bazooka]` | `ExplosionRadius` | `1.5` | Fireball radius in metres. Hits reach this far, but at least 4m |
 | `[Bazooka]` | `ExplosionVolume` | `0.2` | Explosion loudness vs dynamite |
-| `[Bazooka]` | `ExplosionOneShot` | `true` | One rocket KOs everyone in the blast. Off = one hit (zombies 2, Scoutmaster 4) |
 | `[Bazooka]` | `RocketSpeed` | `38` | Rocket flight speed in m/s |
-| `[Bazooka]` | `SelfDamage` | `0.05` | Injury from your own blast (0–1). Ignored when `TF2RocketJump` is on |
-| `[Bazooka]` | `SelfKnockback` | `16` | How hard your own blast launches you, m/s at point-blank |
-| `[Bazooka]` | `SelfKnockbackUp` | `0.75` | Extra upward pull so a floor shot pops you up |
-| `[Bazooka]` | `TF2RocketJump` | `false` | TF2 soldier: WASD, no ragdoll, **0 self-Injury** |
+| `[Bazooka]` | `SelfDamage` | `0.25` | Standard: Injury from your own blast at point-blank (0–1), half at the edge |
+| `[Bazooka]` | `SelfKnockback` | `10` | Standard: how hard your own blast flings you, m/s at point-blank |
+| `[Bazooka]` | `SelfKnockbackUp` | `0.75` | Standard: extra upward pull so a floor shot pops you up |
 | `[Bazooka]` | `GiveBazookaOnSpawn` | `false` | Host: one bazooka in hand per scout on climb spawn |
+| `[TF2]` | `LaunchSpeed` | `18` | Rocket jump speed, m/s at point-blank (half at 4m) |
+| `[TF2]` | `LaunchUp` | `0.6` | Extra upward pull on a rocket jump. 0 = straight away from the blast |
+| `[TF2]` | `AirControl` | `20` | How fast WASD steers / brakes in the air, m/s² |
+| `[TF2]` | `Gravity` | `15` | Gravity during a rocket jump, m/s². Lower = floatier |
+| `[Targets]` | `Scouts`, `Zombies`, `Scoutmaster`, `Spiders`, `Beetles`, `Scorpions`, `Frogs`, `Condors`, `Antlions`, `Ticks`, `Jellyfish`, `BeeSwarms`, `Beehives`, `Mandrakes`, `Spores`, `Dynamite`, `Coconuts`, `Tumbleweeds`, `BingBong`, `Balloons` | `true` | Whether rockets affect that target. Host's value. `Scouts` only matters in Standard |
+| `[Targets]` | `ScoutmasterHits` | `3` | Rockets to get rid of the Scoutmaster. Host's value |
 | `[Debug]` | `EnableDebugMode` | `false` | Host spawns test zombies, a bazooka, and luggage at Airport / Shore |
 
-Explosions always hit scouts, zombies, frogs, and the rest — there is no per-target toggle. In multiplayer `Shots` and `ExplosionOneShot` come from the host. Recoil, explosion size, self-damage, self-knockback, and `TF2RocketJump` stay per player. Saving `PeakBazooka.cfg` while PEAK is running applies on the next shot (about half a second); no restart. Old `ExplosionRadius = 6` (with a smaller-looking fireball) is rewritten to match that fireball on first launch of 0.1.13.
+In multiplayer `Mode`, `Shots` and everything under `[Targets]` come from the host. Recoil, explosion size and loudness, self-damage, self-knockback and the `[TF2]` jump tuning stay per player. Saving `PeakBazooka.cfg` while PEAK is running applies on the next shot (about half a second); no restart. An old `TF2RocketJump = true` (or `SelfRagdoll = false`) becomes `Mode = TF2`; `ExplosionOneShot` is gone (every creature dies in one rocket except the Scoutmaster).
 
 ## Install
 

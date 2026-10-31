@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using BepInEx.Configuration;
 using UnityEngine;
 
 namespace Peak.Shotgun;
@@ -34,196 +35,155 @@ internal enum ShootTargets
     Balloons = 1 << 19,
 }
 
-/// <summary>
-/// One blast target. Always on — no cfg. Hit counts are hardcoded;
-/// <see cref="Plugin.ExplosionOneShot"/> (default true) one-shots everything.
-/// </summary>
+/// <summary>One <c>[Targets]</c> switch: whether a rocket affects this kind of target. On by default; host's value.</summary>
 internal sealed class ShootableRule
 {
-    internal ShootableRule(
-        string key,
-        ShootTargets flag,
-        int hitsSlot,
-        int defaultHits,
-        string effect,
-        string hitsGoal,
-        bool unlocksAllBiomeLoot = true)
+    private readonly Func<int>? hitsToDefeat;
+
+    private ConfigEntry<bool>? entry;
+
+    internal ShootableRule(string key, ShootTargets flag, string effect, Func<int>? hitsToDefeat = null)
     {
         Key = key;
         Flag = flag;
-        HitsSlot = hitsSlot;
-        DefaultHits = defaultHits;
         Effect = effect;
-        HitsGoal = hitsGoal;
-        UnlocksAllBiomeLoot = unlocksAllBiomeLoot;
+        this.hitsToDefeat = hitsToDefeat;
     }
 
-    /// <summary>Stable name for logs / packed hit slots.</summary>
+    /// <summary>Config key under <c>[Targets]</c>.</summary>
     internal string Key { get; }
 
     internal ShootTargets Flag { get; }
 
-    /// <summary>Byte index in the packed <c>[HitsToDefeat]</c> room property. -1 = no hit count (scouts take Injury every hit).</summary>
-    internal int HitsSlot { get; }
-
-    internal int DefaultHits { get; }
-
-    /// <summary>What a blast does to this target.</summary>
+    /// <summary>What a rocket does to this target (the config description).</summary>
     internal string Effect { get; }
 
-    /// <summary>Unused in cfg; kept so hardcoded hit counts stay documented next to each rule.</summary>
-    internal string HitsGoal { get; }
+    internal bool LocalEnabled => entry?.Value ?? true;
 
-    /// <summary>
-    /// False only for targets that must not open luggage outside Roots (Scoutmaster). See
-    /// <see cref="ShootableRules.IsZombiesOnly"/>.
-    /// </summary>
-    internal bool UnlocksAllBiomeLoot { get; }
+    /// <summary>The host's switch in multiplayer, this player's offline.</summary>
+    internal bool Enabled => (HostConfigSync.Shootables & Flag) != 0;
 
-    internal bool HasHitCount => HitsSlot >= 0;
+    /// <summary>Rockets to defeat it. Counted by the host, so the host's value applies.</summary>
+    internal int HitsToDefeat => Mathf.Max(1, hitsToDefeat?.Invoke() ?? 1);
 
-    /// <summary>Always on. Blasts hit everyone.</summary>
-    internal bool LocalEnabled => true;
-
-    /// <summary>Always on. Blasts hit everyone.</summary>
-    internal bool Enabled => true;
-
-    /// <summary>Hardcoded hits to defeat. Ignored when <see cref="Plugin.ExplosionOneShot"/> is on.</summary>
-    internal int HitsToDefeat => DefaultHits;
+    internal void Bind(ConfigFile config) =>
+        entry = config.Bind(ShootableRules.Section, Key, true, $"Rockets {Effect}. Host's value in multiplayer.");
 }
 
 /// <summary>
-/// Every blast target. Always enabled. To add one: append a <see cref="ShootTargets"/>
-/// bit, add a rule here with the next free <see cref="ShootableRule.HitsSlot"/>, and (for a world target) a
-/// <see cref="ShotTarget"/> in <see cref="ShotTargetRegistry"/>.
+/// Every rocket target. To add one: append a <see cref="ShootTargets"/> bit, add a rule here, and (for a world
+/// target) a <see cref="ShotTarget"/> in <see cref="ShotTargetRegistry"/>.
 /// </summary>
 internal static class ShootableRules
 {
+    internal const string Section = "Targets";
+
+    internal const int DefaultScoutmasterHits = 3;
+
+    private static ConfigEntry<int>? scoutmasterHits;
+
     internal static readonly ShootableRule Scouts = new(
-        "Scouts", ShootTargets.Scouts, -1, 1, "injure and ragdoll other scouts", "");
+        "Scouts", ShootTargets.Scouts, "injure and knock down other scouts (Standard mode only; TF2 mode never hurts scouts)");
 
     internal static readonly ShootableRule Zombies = new(
-        "Zombies", ShootTargets.Zombies, 0, 2, "hit and knock down zombies", "knock down a zombie");
-
-    internal static readonly ShootableRule Mandrake = new(
-        "Mandrake", ShootTargets.Mandrake, 1, 1, "destroy mandrakes", "destroy a mandrake");
-
-    internal static readonly ShootableRule Beetles = new(
-        "Beetles", ShootTargets.Beetles, 2, 1, "kill beetles", "kill a beetle");
-
-    internal static readonly ShootableRule Spiders = new(
-        "Spiders", ShootTargets.Spiders, 3, 1, "stun spiders (same as throwing an item at them)", "stun a spider");
-
-    internal static readonly ShootableRule Spores = new(
-        "Spores",
-        ShootTargets.Spores,
-        4,
-        1,
-        "break spore bombs (spore, explosive, and poison) and clear spore clouds",
-        "break a spore bomb or clear a spore cloud");
-
-    internal static readonly ShootableRule Scorpions = new(
-        "Scorpions", ShootTargets.Scorpions, 5, 1, "kill scorpions", "kill a scorpion");
-
-    internal static readonly ShootableRule Dynamite = new(
-        "Dynamite", ShootTargets.Dynamite, 6, 1, "explode dynamite on hit", "explode dynamite");
+        "Zombies", ShootTargets.Zombies, "knock out zombies");
 
     internal static readonly ShootableRule Scoutmaster = new(
         "Scoutmaster",
         ShootTargets.Scoutmaster,
-        7,
-        4,
-        "drive off Scoutmaster Myres after enough hits",
-        "drive off the Scoutmaster",
-        unlocksAllBiomeLoot: false);
+        "knock down Scoutmaster Myres; after ScoutmasterHits rockets he is gone for good",
+        () => scoutmasterHits?.Value ?? DefaultScoutmasterHits);
 
-    internal static readonly ShootableRule Condors = new(
-        "Condors", ShootTargets.Condors, 8, 1, "kill Caldera condors and drop anyone they are carrying", "kill a condor");
+    internal static readonly ShootableRule Spiders = new(
+        "Spiders", ShootTargets.Spiders, "kill spiders (they drop whoever they were holding)");
 
-    internal static readonly ShootableRule Antlions = new(
-        "Antlions", ShootTargets.Antlions, 9, 1, "disable Mesa antlion pits", "disable an antlion");
+    internal static readonly ShootableRule Beetles = new(
+        "Beetles", ShootTargets.Beetles, "kill beetles");
+
+    internal static readonly ShootableRule Scorpions = new(
+        "Scorpions", ShootTargets.Scorpions, "kill scorpions");
 
     internal static readonly ShootableRule Frogs = new(
-        "Frogs", ShootTargets.Frogs, 10, 1, "kill Gloom frogs and drop cooked frog legs", "kill a frog (drops cooked frog legs)");
+        "Frogs", ShootTargets.Frogs, "kill Gloom frogs (they drop cooked frog legs)");
 
-    internal static readonly ShootableRule Beehives = new(
-        "Beehives", ShootTargets.Beehives, 11, 1, "smash Tropics beehives (honeycomb drops, bees get angry)", "smash a beehive");
+    internal static readonly ShootableRule Condors = new(
+        "Condors", ShootTargets.Condors, "kill Caldera condors (they drop whoever they were carrying)");
+
+    internal static readonly ShootableRule Antlions = new(
+        "Antlions", ShootTargets.Antlions, "kill Mesa antlions");
 
     internal static readonly ShootableRule Ticks = new(
-        "Ticks", ShootTargets.Ticks, 12, 1, "knock ticks off scouts", "knock a tick off a scout");
+        "Ticks", ShootTargets.Ticks, "knock ticks off scouts");
 
     internal static readonly ShootableRule Jellyfish = new(
-        "Jellyfish", ShootTargets.Jellyfish, 13, 1, "smash Shore jellyfish", "smash a jellyfish");
-
-    internal static readonly ShootableRule Coconuts = new(
-        "Coconuts", ShootTargets.Coconuts, 14, 1, "knock whole coconuts off palm trees", "knock a coconut off a tree");
-
-    // The rules below do not unlock all-biome luggage, so an existing Zombies-only config keeps Roots-only loot
-    // when these keys appear with their default (on).
-    internal static readonly ShootableRule Tumbleweeds = new(
-        "Tumbleweeds",
-        ShootTargets.Tumbleweeds,
-        -1,
-        1,
-        "blow Mesa tumbleweeds away (every hit pushes)",
-        "",
-        unlocksAllBiomeLoot: false);
+        "Jellyfish", ShootTargets.Jellyfish, "smash Shore jellyfish");
 
     internal static readonly ShootableRule BeeSwarms = new(
-        "BeeSwarms",
-        ShootTargets.BeeSwarms,
-        15,
-        1,
-        "scatter bee swarms, angry or not (they disperse like bees that lost their hive)",
-        "scatter a bee swarm",
-        unlocksAllBiomeLoot: false);
+        "BeeSwarms", ShootTargets.BeeSwarms, "scatter bee swarms");
+
+    internal static readonly ShootableRule Beehives = new(
+        "Beehives", ShootTargets.Beehives, "smash beehives (honeycomb drops, bees get angry)");
+
+    internal static readonly ShootableRule Mandrake = new(
+        "Mandrakes", ShootTargets.Mandrake, "destroy mandrakes");
+
+    internal static readonly ShootableRule Spores = new(
+        "Spores", ShootTargets.Spores, "break spore bombs and clear spore clouds");
+
+    internal static readonly ShootableRule Dynamite = new(
+        "Dynamite", ShootTargets.Dynamite, "set off dynamite");
+
+    internal static readonly ShootableRule Coconuts = new(
+        "Coconuts", ShootTargets.Coconuts, "knock coconuts off palm trees");
+
+    internal static readonly ShootableRule Tumbleweeds = new(
+        "Tumbleweeds", ShootTargets.Tumbleweeds, "push Mesa tumbleweeds");
 
     internal static readonly ShootableRule BingBong = new(
-        "BingBong",
-        ShootTargets.BingBong,
-        -1,
-        1,
-        "make Bing Bong squeak, say something, and fly (every hit reacts)",
-        "",
-        unlocksAllBiomeLoot: false);
+        "BingBong", ShootTargets.BingBong, "make Bing Bong squeak and fly");
 
     internal static readonly ShootableRule Balloons = new(
-        "Balloons",
-        ShootTargets.Balloons,
-        -1,
-        1,
-        "pop balloons: ones tied to a scout (they lose that lift) and balloon items on the ground or in a hand",
-        "",
-        unlocksAllBiomeLoot: false);
+        "Balloons", ShootTargets.Balloons, "pop balloons");
 
     internal static readonly IReadOnlyList<ShootableRule> All =
     [
         Scouts,
         Zombies,
-        Mandrake,
-        Beetles,
-        Spiders,
-        Spores,
-        Scorpions,
-        Dynamite,
         Scoutmaster,
+        Spiders,
+        Beetles,
+        Scorpions,
+        Frogs,
         Condors,
         Antlions,
-        Frogs,
-        Beehives,
         Ticks,
         Jellyfish,
+        BeeSwarms,
+        Beehives,
+        Mandrake,
+        Spores,
+        Dynamite,
         Coconuts,
         Tumbleweeds,
-        BeeSwarms,
         BingBong,
         Balloons,
     ];
 
-    /// <summary>Bytes in the packed <c>[HitsToDefeat]</c> room property (highest slot + 1).</summary>
-    internal static readonly int HitsSlotCount = CountHitsSlots();
+    internal static void Bind(ConfigFile config)
+    {
+        foreach (ShootableRule rule in All)
+        {
+            rule.Bind(config);
+            if (rule == Scoutmaster)
+            {
+                scoutmasterHits = config.Bind(Section, "ScoutmasterHits", DefaultScoutmasterHits, new ConfigDescription(
+                    "Rockets it takes to get rid of Scoutmaster Myres. Each earlier rocket knocks him down. Host's value in multiplayer.",
+                    new AcceptableValueRange<int>(1, 10)));
+            }
+        }
+    }
 
-    /// <summary>Every target flag. Blasts always use this set.</summary>
+    /// <summary>This player's switches, as the host publishes them.</summary>
     internal static ShootTargets LocalShootables
     {
         get
@@ -231,155 +191,13 @@ internal static class ShootableRules
             ShootTargets targets = ShootTargets.None;
             foreach (ShootableRule rule in All)
             {
-                targets |= rule.Flag;
+                if (rule.LocalEnabled)
+                {
+                    targets |= rule.Flag;
+                }
             }
 
             return targets;
         }
-    }
-
-    /// <summary>
-    /// True when Zombies is the only loot-relevant enabled shootable. Unused for spawn now
-    /// (the bazooka always rolls in every biome). Kept so shootable flags stay documented.
-    /// </summary>
-    internal static bool IsZombiesOnly
-    {
-        get
-        {
-            ShootTargets lootRelevant = ShootTargets.None;
-            foreach (ShootableRule rule in All)
-            {
-                if (rule.UnlocksAllBiomeLoot)
-                {
-                    lootRelevant |= rule.Flag;
-                }
-            }
-
-            return (LocalShootables & lootRelevant) == ShootTargets.Zombies;
-        }
-    }
-
-    private static int CountHitsSlots()
-    {
-        var flags = new HashSet<ShootTargets>();
-        var slots = new HashSet<int>();
-        int highest = -1;
-        foreach (ShootableRule rule in All)
-        {
-            // A duplicate here would silently desync the room properties, so fail loudly at startup.
-            if (!flags.Add(rule.Flag) || (rule.HasHitCount && !slots.Add(rule.HitsSlot)))
-            {
-                throw new InvalidOperationException($"Shootable rule '{rule.Key}' reuses a flag or hits slot.");
-            }
-
-            highest = Mathf.Max(highest, rule.HitsSlot);
-        }
-
-        if (slots.Count != highest + 1)
-        {
-            throw new InvalidOperationException("Shootable hits slots must be contiguous from 0.");
-        }
-
-        return highest + 1;
-    }
-}
-
-/// <summary>
-/// Shots needed to defeat each non-scout target, indexed by <see cref="ShootableRule.HitsSlot"/>.
-/// Packed as a byte array for the host room property (slot order is fixed — do not reorder; append only).
-/// </summary>
-internal readonly struct HitsToDefeatSettings : IEquatable<HitsToDefeatSettings>
-{
-    /// <summary>Oldest host builds published 7 bytes; anything shorter is ignored.</summary>
-    internal const int LegacyPackedLength = 7;
-
-    internal const int MaxHits = 20;
-
-    private readonly byte[]? hits;
-
-    private HitsToDefeatSettings(byte[] hits) => this.hits = hits;
-
-    internal static HitsToDefeatSettings Defaults => From(rule => rule.DefaultHits);
-
-    /// <summary>Hardcoded hit counts. No longer a cfg section — one-shot is <see cref="Plugin.ExplosionOneShot"/>.</summary>
-    internal static HitsToDefeatSettings Local => Defaults;
-
-    /// <summary>Hits for that rule. A slot missing from an older host's packet uses the default.</summary>
-    internal int For(ShootableRule rule)
-    {
-        if (!rule.HasHitCount)
-        {
-            return 1;
-        }
-
-        return hits != null && rule.HitsSlot < hits.Length ? hits[rule.HitsSlot] : rule.DefaultHits;
-    }
-
-    internal byte[] ToPacked() => (byte[])(hits ?? Defaults.hits!).Clone();
-
-    internal static HitsToDefeatSettings FromPacked(byte[]? packed)
-    {
-        if (packed == null || packed.Length < LegacyPackedLength)
-        {
-            return Defaults;
-        }
-
-        return From(rule => rule.HitsSlot < packed.Length ? packed[rule.HitsSlot] : rule.DefaultHits);
-    }
-
-    internal static int Clamp(int value) => Mathf.Clamp(value, 1, MaxHits);
-
-    public bool Equals(HitsToDefeatSettings other)
-    {
-        foreach (ShootableRule rule in ShootableRules.All)
-        {
-            if (For(rule) != other.For(rule))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    public override bool Equals(object? obj) => obj is HitsToDefeatSettings other && Equals(other);
-
-    public override string ToString()
-    {
-        var parts = new List<string>();
-        foreach (ShootableRule rule in ShootableRules.All)
-        {
-            if (rule.HasHitCount)
-            {
-                parts.Add($"{rule.Key}={For(rule)}");
-            }
-        }
-
-        return string.Join(", ", parts);
-    }
-
-    public override int GetHashCode()
-    {
-        int hash = 17;
-        foreach (ShootableRule rule in ShootableRules.All)
-        {
-            hash = hash * 31 + For(rule);
-        }
-
-        return hash;
-    }
-
-    private static HitsToDefeatSettings From(Func<ShootableRule, int> value)
-    {
-        byte[] packed = new byte[ShootableRules.HitsSlotCount];
-        foreach (ShootableRule rule in ShootableRules.All)
-        {
-            if (rule.HasHitCount)
-            {
-                packed[rule.HitsSlot] = (byte)Clamp(value(rule));
-            }
-        }
-
-        return new HitsToDefeatSettings(packed);
     }
 }

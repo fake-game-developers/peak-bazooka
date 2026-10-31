@@ -3,8 +3,9 @@ using UnityEngine;
 namespace Peak.Shotgun;
 
 /// <summary>
-/// Local visual + collision for one rocket. Every client spawns one from <see cref="Action_Gun"/>;
-/// only the shooter's copy reports the impact so damage stays host-authorized.
+/// Local visual + collision for one rocket. Every client spawns one from the shooter's <see cref="BazookaShooter"/>
+/// (not the gun, which PEAK destroys when it is put away); only the shooter's copy reports the impact so damage
+/// stays host-authorized.
 /// </summary>
 internal sealed class BazookaRocket : MonoBehaviour
 {
@@ -14,9 +15,9 @@ internal sealed class BazookaRocket : MonoBehaviour
 
     private const float MaxLife = 6f;
 
-    internal Action_Gun? Gun;
+    private static readonly RaycastHit[] Hits = new RaycastHit[32];
 
-    internal Character? Shooter;
+    internal BazookaShooter? Shooter;
 
     internal int ShotId;
 
@@ -52,11 +53,9 @@ internal sealed class BazookaRocket : MonoBehaviour
         }
 
         Vector3 direction = step / distance;
-        int mask = HelperFunctions.CharacterAndDefaultMask | HelperFunctions.terrainMapMask | ShotTargetRegistry.ExtraLayerMask;
-        if (Physics.SphereCast(transform.position, Radius, direction, out RaycastHit hit, distance, mask, QueryTriggerInteraction.Collide)
-            && !IsShooterCollider(hit.collider))
+        if (TryFindImpact(transform.position, direction, distance, out Vector3 impact))
         {
-            Explode(hit.point);
+            Explode(impact);
             return;
         }
 
@@ -72,14 +71,42 @@ internal sealed class BazookaRocket : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Nearest thing this step's sweep touches, skipping the shooter. A single SphereCast stops at the first
+    /// collider: when that was the shooter's own arm the whole step was skipped, so a zombie right in front of you
+    /// was flown through. It also misses colliders the rocket starts inside (a zombie on top of you); the
+    /// "All" query reports those at distance 0.
+    /// </summary>
+    private bool TryFindImpact(Vector3 from, Vector3 direction, float distance, out Vector3 impact)
+    {
+        int mask = HelperFunctions.CharacterAndDefaultMask | HelperFunctions.terrainMapMask | ShotTargetRegistry.ExtraLayerMask;
+        int count = Physics.SphereCastNonAlloc(from, Radius, direction, Hits, distance, mask, QueryTriggerInteraction.Collide);
+        float best = float.MaxValue;
+        impact = from;
+        for (int i = 0; i < count; i++)
+        {
+            RaycastHit hit = Hits[i];
+            if (hit.collider == null || hit.distance >= best || IsShooterCollider(hit.collider))
+            {
+                continue;
+            }
+
+            best = hit.distance;
+            impact = hit.distance <= 0f ? from : hit.point;
+        }
+
+        return best < float.MaxValue;
+    }
+
     private bool IsShooterCollider(Collider collider)
     {
-        if (Shooter == null || collider == null)
+        Character? shooter = Shooter != null ? Shooter.Character : null;
+        if (shooter == null || collider == null)
         {
             return false;
         }
 
-        return collider.GetComponentInParent<Character>() == Shooter;
+        return collider.GetComponentInParent<Character>() == shooter;
     }
 
     private void Explode(Vector3 point)
@@ -90,9 +117,9 @@ internal sealed class BazookaRocket : MonoBehaviour
         }
 
         exploded = true;
-        if (ReportsImpact && Gun != null)
+        if (ReportsImpact && Shooter != null)
         {
-            Gun.DetonateRocket(ShotId, point, velocity.sqrMagnitude > 0.01f ? velocity.normalized : transform.forward);
+            Shooter.DetonateRocket(ShotId, point, velocity.sqrMagnitude > 0.01f ? velocity.normalized : transform.forward);
         }
 
         Destroy(gameObject);

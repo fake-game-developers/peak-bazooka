@@ -105,6 +105,13 @@ internal static class ShotTargetRegistry
             return true;
         });
 
+    internal static void PartialHit(ShotTarget target, Component component, ShotHit hit) =>
+        Run(target, "partial hit", () =>
+        {
+            target.PartialHit(component, hit);
+            return true;
+        });
+
     internal static void Effect(ShotTarget target, Component component, Vector3 push, int variant) =>
         Run(target, "effect", () =>
         {

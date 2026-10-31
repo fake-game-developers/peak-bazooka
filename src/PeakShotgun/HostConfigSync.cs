@@ -7,8 +7,8 @@ using UnityEngine;
 namespace Peak.Shotgun;
 
 /// <summary>
-/// Room rules authored by the host only: magazine size (<c>Shots</c>, 0 = infinite),
-/// <c>ExplosionOneShot</c>, and defeated condors / antlions. Blasts always hit every target type.
+/// Room rules authored by the host only: <c>Mode</c> (Standard / TF2), magazine size (<c>Shots</c>, 0 = infinite),
+/// the <c>[Targets]</c> switches, and defeated condors / antlions / spiders.
 /// Published through Photon room custom properties so every client applies the same rules,
 /// whoever fires and whoever is hit.
 /// </summary>
@@ -20,13 +20,13 @@ internal sealed class HostConfigSync : MonoBehaviour, IInRoomCallbacks, IMatchma
 
     internal const string RoomWorldDownKey = "PeakBazooka_WorldDown";
 
-    internal const string RoomOneShotKey = "PeakBazooka_OneShot";
+    internal const string RoomModeKey = "PeakBazooka_Mode";
 
     private static int? hostShots;
 
     private static ShootTargets? hostShootables;
 
-    private static bool? hostExplosionOneShot;
+    private static BazookaMode? hostMode;
 
     /// <summary>Host-synced magazine size when in a room; otherwise the local config. 0 = infinite.</summary>
     internal static int ShotCount
@@ -42,14 +42,11 @@ internal sealed class HostConfigSync : MonoBehaviour, IInRoomCallbacks, IMatchma
         }
     }
 
-    /// <summary>Every target. No cfg — blasts always hit everyone.</summary>
-    internal static ShootTargets Shootables => ShootableRules.LocalShootables;
+    /// <summary>Host's <c>[Targets]</c> switches in a room; this player's own offline.</summary>
+    internal static ShootTargets Shootables => hostShootables ?? ShootableRules.LocalShootables;
 
-    /// <summary>Hardcoded hit counts (no cfg). Used only when <see cref="ExplosionOneShot"/> is off.</summary>
-    internal static HitsToDefeatSettings HitsToDefeat => HitsToDefeatSettings.Defaults;
-
-    /// <summary>Host-synced: one rocket defeats a shootable. Otherwise local config.</summary>
-    internal static bool ExplosionOneShot => hostExplosionOneShot ?? Plugin.LocalExplosionOneShot;
+    /// <summary>Host-synced Standard / TF2. Both sides of a hit must agree on whether scouts take damage.</summary>
+    internal static BazookaMode Mode => hostMode ?? Plugin.LocalMode;
 
     private void OnEnable() => PhotonNetwork.AddCallbackTarget(this);
 
@@ -62,7 +59,7 @@ internal sealed class HostConfigSync : MonoBehaviour, IInRoomCallbacks, IMatchma
         {
             hostShots = Plugin.LocalConfiguredShots;
             hostShootables = null;
-            hostExplosionOneShot = Plugin.LocalExplosionOneShot;
+            hostMode = Plugin.LocalMode;
             ShotgunCombat.ClearWorldHitCounts();
             Plugin.ApplyShotCountConfig();
             Plugin.Log.LogInfo($"Shots (offline/local) = {(Plugin.InfiniteShots ? "infinite" : ShotCount.ToString())} ({reason}).");
@@ -85,20 +82,20 @@ internal sealed class HostConfigSync : MonoBehaviour, IInRoomCallbacks, IMatchma
     {
         int shots = Plugin.LocalConfiguredShots;
         ShootTargets shootables = ShootableRules.LocalShootables;
-        bool oneShot = Plugin.LocalExplosionOneShot;
+        BazookaMode mode = Plugin.LocalMode;
         hostShots = shots;
         hostShootables = shootables;
-        hostExplosionOneShot = oneShot;
+        hostMode = mode;
         PhotonNetwork.CurrentRoom.SetCustomProperties(new Hashtable
         {
             { RoomShotsKey, shots },
             { RoomShootablesKey, (int)shootables },
             { RoomWorldDownKey, ShotgunCombat.PackWorldDefeats() },
-            { RoomOneShotKey, oneShot ? 1 : 0 },
+            { RoomModeKey, (int)mode },
         });
         Plugin.ApplyShotCountConfig();
         Plugin.Log.LogInfo(
-            $"Host published Shots = {(shots <= 0 ? "infinite" : shots.ToString())}, ExplosionOneShot = {oneShot}, Shootables = {shootables} ({reason}).");
+            $"Host published Mode = {mode}, Shots = {(shots <= 0 ? "infinite" : shots.ToString())}, Targets = {shootables} ({reason}).");
     }
 
     /// <summary>Applies whichever room settings the host has published. False until shootables arrive.</summary>
@@ -116,7 +113,7 @@ internal sealed class HostConfigSync : MonoBehaviour, IInRoomCallbacks, IMatchma
             && hostShootables != (ShootTargets)shootablesValue)
         {
             hostShootables = (ShootTargets)shootablesValue;
-            Plugin.Log.LogInfo($"Client applied host Shootables = {hostShootables}.");
+            Plugin.Log.LogInfo($"Client applied host Targets = {hostShootables}.");
         }
 
         if (props.TryGetValue(RoomWorldDownKey, out object? rawDowns) && rawDowns is int[] worldDowns)
@@ -124,13 +121,14 @@ internal sealed class HostConfigSync : MonoBehaviour, IInRoomCallbacks, IMatchma
             ShotgunCombat.ApplyPackedWorldDefeats(worldDowns);
         }
 
-        if (props.TryGetValue(RoomOneShotKey, out object? rawOneShot) && rawOneShot is int oneShotValue)
+        if (props.TryGetValue(RoomModeKey, out object? rawMode) && rawMode is int modeValue
+            && System.Enum.IsDefined(typeof(BazookaMode), modeValue))
         {
-            bool oneShot = oneShotValue != 0;
-            if (hostExplosionOneShot != oneShot)
+            var mode = (BazookaMode)modeValue;
+            if (hostMode != mode)
             {
-                hostExplosionOneShot = oneShot;
-                Plugin.Log.LogInfo($"Client applied host ExplosionOneShot = {oneShot}.");
+                hostMode = mode;
+                Plugin.Log.LogInfo($"Client applied host Mode = {mode}.");
             }
         }
 
@@ -168,8 +166,9 @@ internal sealed class HostConfigSync : MonoBehaviour, IInRoomCallbacks, IMatchma
     {
         hostShots = null;
         hostShootables = null;
-        hostExplosionOneShot = null;
+        hostMode = null;
         ShotgunCombat.ClearWorldHitCounts();
+        ShotLedger.Clear();
     }
 
     public void OnJoinedRoom() => SyncFromLocalRole("joined room");
@@ -196,7 +195,7 @@ internal sealed class HostConfigSync : MonoBehaviour, IInRoomCallbacks, IMatchma
         if (propertiesThatChanged.ContainsKey(RoomShotsKey)
             || propertiesThatChanged.ContainsKey(RoomShootablesKey)
             || propertiesThatChanged.ContainsKey(RoomWorldDownKey)
-            || propertiesThatChanged.ContainsKey(RoomOneShotKey))
+            || propertiesThatChanged.ContainsKey(RoomModeKey))
         {
             TryApplyRoomSettings();
         }
