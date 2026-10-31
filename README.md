@@ -177,7 +177,7 @@ The DLL is `artifacts/bin/Peak.Bazooka/release/PeakBazooka.dll`.
 
 The version is `<Version>` in `src/PeakBazooka/Peak.Bazooka.csproj`; the package name, namespace, description, dependencies and contents are in `src/PeakBazooka/thunderstore.toml`. The zip holds `plugins/PeakBazooka.dll`, `icon.png`, `README.md` (from `THUNDERSTORE.md`), `manifest.json`, `CHANGELOG.md` and `LICENSE`, ready to upload on Thunderstore.
 
-[.github/workflows/thunderstore.yml](.github/workflows/thunderstore.yml) builds the same zip on GitHub. It runs **by hand** from the Actions tab (not on pushes) and uploads the zip as an artifact. It publishes only when its **publish** box is ticked, the version is not live yet and the `TCLI_AUTH_TOKEN` secret is set; the publish step keeps the categories already on the package. It reads the package name from `thunderstore.toml` and checks that the PEAKLib versions there match the csproj.
+[.github/workflows/thunderstore.yml](.github/workflows/thunderstore.yml) builds the same zip on every push to `master` (or by hand from the Actions tab) and uploads it as an artifact. It publishes to Thunderstore under **FakeGameDevelopers** when `<Version>` is not the live release yet and the organization secret `TCLI_AUTH_TOKEN` is set; a push that keeps the live version only builds. The publish step keeps the categories already on the package. It reads the package name from `thunderstore.toml` and checks that the PEAKLib versions there match the csproj.
 
 Each release needs a new `<Version>` and a matching `CHANGELOG.md` section.
 
