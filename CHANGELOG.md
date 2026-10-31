@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1
+
+- **Spawning:** the bazooka now spawns exactly like the vanilla AntiZooka, in the same places and just as often. The guaranteed Roots suitcases and the per-biome cap are gone
+- **Ammo:** a bazooka holds 5 rockets by default (`Shots = 5`), with no refill; `Shots = 0` is still infinite. Configs from 1.0.0 keep their saved value, so set `Shots = 5` yourself if you want the new default
+- Cleaner readme
+
 ## 1.0.0
 
 First release.
