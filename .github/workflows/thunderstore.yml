@@ -107,7 +107,8 @@ jobs:
           # Publish when the csproj version is not yet the live Thunderstore release.
           # Comparing only to the previous git commit misses bumps made while CI was red.
           # Only a confirmed 404 counts as "never published"; any other failure stops the job.
-          url="https://thunderstore.io/api/experimental/package/${TS_NAMESPACE}/${TS_NAME}/"
+          # Cache-busting query: Thunderstore's CDN keeps serving a cached 404 for minutes after the first publish.
+          url="https://thunderstore.io/api/experimental/package/${TS_NAMESPACE}/${TS_NAME}/?nocache=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           status=000
           for attempt in 1 2 3; do
             if ! status=$(curl -sS -A "peak-bazooka" --max-time 30 -o live.json -w '%{http_code}' "$url"); then
