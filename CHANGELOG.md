@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2
+
+- New Thunderstore page: a punchier description and a readme that is quicker to read (features at a glance, quick start, a target table and the main settings up front). No gameplay changes
+
 ## 1.0.1
 
 - **Spawning:** the bazooka now spawns exactly like the vanilla AntiZooka, in the same places and just as often. The guaranteed Roots suitcases and the per-biome cap are gone

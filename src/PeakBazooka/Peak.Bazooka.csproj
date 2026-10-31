@@ -8,7 +8,7 @@
 		<Company>Arman Ossi Loko</Company>
 		<Copyright>Copyright (c) 2026 Fake Game Developers</Copyright>
 		<Description>A bazooka built from PEAK's AntiZooka that fires exploding rockets instead of antigravity bubbles.</Description>
-		<Version>1.0.1</Version>
+		<Version>1.0.2</Version>
 		<RootNamespace>Peak.Bazooka</RootNamespace>
 		<ThunderstorePackable>true</ThunderstorePackable>
 	</PropertyGroup>
