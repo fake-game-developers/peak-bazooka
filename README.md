@@ -50,12 +50,11 @@ Every target can be switched off under `[Targets]`.
 
 ## Where to find it
 
-- **Suitcases** in every biome can contain a bazooka, but rarely (**RidiculouslyRare**).
-- **Roots:** in every run through the Roots, at least two random suitcases there contain one.
-- **Cap:** at most 4 suitcases per biome contain a bazooka in one run.
-- **On spawn (optional):** with `GiveBazookaOnSpawn = true`, the host gives each scout a bazooka when they start the climb or join mid-run (Shore and later, once per player per run).
+The bazooka spawns exactly like the vanilla AntiZooka: in the same places, just as often. The mod adds no spawn rules of its own.
 
-A custom run that turns the bazooka off in its item settings gets none. Ammo is infinite by default (`Shots = 0`); any other number is a magazine that cannot be refilled.
+**On spawn (optional):** with `GiveBazookaOnSpawn = true`, the host gives each scout a bazooka when they start the climb or join mid-run (Shore and later, once per player per run).
+
+Ammo is infinite by default (`Shots = 0`); any other number is a magazine that cannot be refilled.
 
 ## Configuration
 
@@ -185,7 +184,7 @@ The zip lands in `artifacts/thunderstore/` with `plugins/PeakBazooka.dll`, `icon
 | Damage to other scouts | `ScoutInjury` in `BazookaShooter.cs` |
 | Smoke lifetime | `ExplosionCleanupSeconds` in `Plugin.cs` |
 | Rocket jump feel | `RocketFlight.cs` (`MaxSpeed`, `AirWishSpeed`) and the `[RocketJump]` settings |
-| Where it spawns | `GuaranteedLuggageBazookas`, `MaxBazookasPerBiome` and the `Rarity` in `Plugin.cs`; `RootsLuggagePatch.cs` |
+| Where it spawns | The clone keeps the AntiZooka's `LootData` (`Plugin.CreateFromAntiZooka`); set its `spawnLocations` and `Rarity` there to change it |
 | What rockets hit | One `ShotTarget` per target in `Targets/`, registered in `Targets/ShotTargetRegistry.cs`, with its switch in `Targets/ShootableRules.cs` |
 
 **Publishing your own mod.** To ship it as a separate package that can sit next to this one, change its identity:
@@ -193,7 +192,7 @@ The zip lands in `artifacts/thunderstore/` with `plugins/PeakBazooka.dll`, `icon
 1. `src/PeakBazooka/thunderstore.toml`: `namespace` (your Thunderstore team), `name`, `description`, `websiteUrl`. CI and the package build read the name from here.
 2. `src/PeakBazooka/Plugin.cs`: the plugin GUID in `[BepInAutoPlugin("PeakBazooka")]`. It also names the config file and the item's id.
 3. `src/PeakBazooka/Peak.Bazooka.csproj`: `AssemblyName` (the DLL name, also in `thunderstore.toml`'s `[[build.copy]]`), `Authors`, `Company`, `Version`.
-4. The `PeakBazooka_*` room keys in `HostConfigSync.cs` and `BazookaLootLedger.cs`, and the `PeakBazooka.*` file names in `BazookaLootLedger.cs` and `BazookaText.cs`, so both mods can run in one lobby.
+4. The `PeakBazooka_*` room keys in `HostConfigSync.cs` and the `PeakBazooka.localization.csv` file name in `BazookaText.cs`, so both mods can run in one lobby.
 5. `icon.png`, `README.md`, `THUNDERSTORE.md` and `CHANGELOG.md`.
 
 ## Credits

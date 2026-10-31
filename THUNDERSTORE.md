@@ -50,12 +50,11 @@ Every target can be switched off under `[Targets]`.
 
 ## Where to find it
 
-- **Suitcases** in every biome can contain a bazooka, but rarely (**RidiculouslyRare**).
-- **Roots:** in every run through the Roots, at least two random suitcases there contain one.
-- **Cap:** at most 4 suitcases per biome contain a bazooka in one run.
-- **On spawn (optional):** with `GiveBazookaOnSpawn = true`, the host gives each scout a bazooka when they start the climb or join mid-run (Shore and later, once per player per run).
+The bazooka spawns exactly like the vanilla AntiZooka: in the same places, just as often. The mod adds no spawn rules of its own.
 
-A custom run that turns the bazooka off in its item settings gets none. Ammo is infinite by default (`Shots = 0`); any other number is a magazine that cannot be refilled.
+**On spawn (optional):** with `GiveBazookaOnSpawn = true`, the host gives each scout a bazooka when they start the climb or join mid-run (Shore and later, once per player per run).
+
+Ammo is infinite by default (`Shots = 0`); any other number is a magazine that cannot be refilled.
 
 ## Configuration
 

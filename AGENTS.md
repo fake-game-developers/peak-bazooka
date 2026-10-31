@@ -10,6 +10,8 @@ Vanilla hold pose, hands, mesh geometry and shaders stay. There is no custom arm
 
 The rocket in flight is `RocketModel`: PEAK's `InertRocket` resource (the rocket pack's spent rocket), stripped of scripts, physics and its firework particles (they drew coloured discs and black smoke around the shooter) under an inactive holder. The model stands upright: its own +Y (the nose) is turned to +Z, the flight direction — its bounds' longest side is not the length, which made it fly nose-up. Scaled to a 0.22m bore. It falls back to the AntiZooka's antigravity `Shell` if the resource is missing.
 
+Spawning: the clone keeps the AntiZooka's `LootData` exactly as it is (spawn pools, rarity, solo and custom-run flags), so the bazooka spawns wherever and as often as the AntiZooka. There are no mod spawn rules — no guaranteed suitcases, biome caps or loot ledger (those were the shotgun's zombie-hunting rules). `GiveBazookaOnSpawn` is the only extra source.
+
 ## Where things live
 
 | Path | What it is |

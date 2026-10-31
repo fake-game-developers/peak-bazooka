@@ -151,26 +151,6 @@ public partial class Plugin : BaseUnityPlugin
 
     internal static bool GiveBazookaOnSpawn => giveBazookaOnSpawn?.Value ?? false;
 
-    internal const int GuaranteedLuggageBazookas = 2;
-
-    internal const int MaxBazookasPerBiome = 4;
-
-    internal static readonly SpawnPool AllLuggagePools =
-        SpawnPool.LuggageBeach
-        | SpawnPool.LuggageJungle
-        | SpawnPool.LuggageTundra
-        | SpawnPool.LuggageCaldera
-        | SpawnPool.LuggageClimber
-        | SpawnPool.LuggageAncient
-        | SpawnPool.LuggageCursed
-        | SpawnPool.LuggageMesa
-        | SpawnPool.LuggageRoots
-        | SpawnPool.LuggageGloom
-        | SpawnPool.LuggageCitadel
-        | SpawnPool.LuggageClown;
-
-    internal static SpawnPool BazookaLuggagePools => AllLuggagePools;
-
     private DateTime lastConfigWriteUtc;
     private float nextConfigCheck;
 
@@ -453,7 +433,6 @@ public partial class Plugin : BaseUnityPlugin
             lastConfigWriteUtc = SafeConfigWriteTime();
             Config.Reload();
             DropRetiredConfigKeys();
-            ApplyLuggageSpawnConfig();
             HostConfigSync.SyncFromLocalRole(reason);
             Log.LogInfo(
                 $"Config reloaded ({reason}); shots = {(InfiniteShots ? "infinite" : ShotCount.ToString())}, Mode = {Mode}.");
@@ -525,11 +504,6 @@ public partial class Plugin : BaseUnityPlugin
         }
 
         ReloadConfigFromDisk("map load");
-
-        if (mode == LoadSceneMode.Single)
-        {
-            BazookaLootLedger.OnMapLoaded();
-        }
     }
 
     private IEnumerator WaitForAntiZooka()
@@ -674,17 +648,17 @@ public partial class Plugin : BaseUnityPlugin
         gunObject.AddComponent<Action_Ammo>();
         gunObject.AddComponent<BazookaInstanceSetup>();
 
-        LootData loot = gunObject.GetComponent<LootData>() ?? gunObject.AddComponent<LootData>();
-        loot.banInSolo = false;
-        loot.rarityOverrides.Clear();
-        ApplyLuggageSpawnConfig(loot);
-        LootData.AllSpawnWeightData = null;
-
         BazookaText.Inject();
         new ItemContent(item).Register(ModDefinition.GetOrCreate(Info));
         BazookaPrefab = gunObject;
-        Log.LogInfo(
-            $"Registered the bazooka for all biomes' luggage ({GuaranteedLuggageBazookas} random Roots suitcases always forced).");
+
+        // The clone keeps the AntiZooka's LootData untouched, so it spawns wherever and as often as the AntiZooka.
+        // Drop PEAK's cached loot tables so the next roll includes the newly registered item.
+        LootData.AllSpawnWeightData = null;
+        LootData? loot = gunObject.GetComponent<LootData>();
+        Log.LogInfo(loot != null
+            ? $"Registered the bazooka with the AntiZooka's loot: {loot.spawnLocations}, {loot.Rarity}, banInSolo = {loot.banInSolo}."
+            : "Registered the bazooka; the AntiZooka has no LootData, so it does not spawn as loot.");
     }
 
     private static void CacheExplosionPrefab(ItemDatabase database)
@@ -856,23 +830,6 @@ public partial class Plugin : BaseUnityPlugin
         {
             item.antigrav = null;
         }
-    }
-
-    internal static void ApplyLuggageSpawnConfig(LootData? loot = null)
-    {
-        if (loot == null && BazookaPrefab != null)
-        {
-            loot = BazookaPrefab.GetComponent<LootData>();
-        }
-
-        if (loot == null)
-        {
-            return;
-        }
-
-        loot.spawnLocations = BazookaLuggagePools;
-        loot.Rarity = Rarity.RidiculouslyRare;
-        LootData.AllSpawnWeightData = null;
     }
 
     private static void ApplyIcon(Item item, string resourceName, string displayName)

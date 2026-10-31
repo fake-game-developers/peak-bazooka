@@ -180,7 +180,6 @@ internal sealed class HostConfigSync : MonoBehaviour, IInRoomCallbacks, IMatchma
         if (PhotonNetwork.IsMasterClient)
         {
             PublishHostSettings("became host");
-            BazookaLootLedger.OnBecameHost();
         }
     }
 
@@ -191,7 +190,6 @@ internal sealed class HostConfigSync : MonoBehaviour, IInRoomCallbacks, IMatchma
             return;
         }
 
-        BazookaLootLedger.OnRoomPropertiesUpdate(propertiesThatChanged);
         if (propertiesThatChanged.ContainsKey(RoomShotsKey)
             || propertiesThatChanged.ContainsKey(RoomShootablesKey)
             || propertiesThatChanged.ContainsKey(RoomWorldDownKey)
